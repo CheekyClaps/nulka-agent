@@ -159,8 +159,43 @@ def semantic_routing(prompt: str) -> str:
         console.print(f"[bold red]Router Error during semantic classification: {e}[/]")
     return "GENERAL"
 
+def calculate_hallucination_risk(prompt: str) -> int:
+    """Evaluates the prompt against common local LLM hallucination pitfalls."""
+    import re
+    p = prompt.lower()
+    score = 0
+    
+    # 1. External URLs (Models heavily hallucinate reading/browsing live web)
+    if re.search(r'(http[s]?://|www\.)', p):
+        score += 8
+        
+    # 2. Spatial/Location Data (Lack of physical grounding)
+    if re.search(r'\b(near me|closest|nearest|directions to|where is the)\b', p):
+        score += 8
+        
+    # 3. Temporal/Live Data (Models don't know current dates, live news, or stock prices)
+    if re.search(r'\b(latest|today|current version|release|weather|stock|news|live)\b', p):
+        score += 6
+        
+    # 4. Obscure Facts / Dynamic Entities
+    if re.search(r'\b(who won|population of|president of|ceo of)\b', p):
+        score += 5
+        
+    # 5. Arithmetic / Strict Logic 
+    if re.search(r'\b(calculate|multiply|divide|square root)\b', p):
+        score += 4
+        
+    return min(score, 10)
+
 def route_request(prompt: str) -> str:
-    """Integrates LiteLLM Lexical-Semantic routing logic."""
+    """Integrates LiteLLM Lexical-Semantic routing logic and HRF evaluation."""
+    
+    # 0. Evaluate Hallucination Risk Factor (HRF)
+    hrf_score = calculate_hallucination_risk(prompt)
+    if hrf_score >= 7:
+        console.print(f"[bold yellow]⚠️ High Hallucination Risk Factor Detected ({hrf_score}/10). Defaulting to Universal Oracle...[/]")
+        return "ORACLE"
+        
     # 1. Lexical fast-path
     lexical_route = lexical_routing(prompt)
     if lexical_route:
@@ -185,7 +220,23 @@ def execute_crew_workflow(route: str, prompt: str):
     }
 
     # Map routes to Agent combinations & Tasks
-    if route == "PLAN":
+    if route == "ORACLE":
+        tasks = [
+            Task(
+                description=(
+                    f"The user asked a high-risk query: '{prompt}'.\n"
+                    f"1. You MUST use the 'oracle_cli_tool' exactly once to execute this exact query: '{prompt}'.\n"
+                    f"2. You MUST NOT modify or summarize the response.\n"
+                    f"3. Return the EXACT string returned by the oracle_cli_tool as your final answer."
+                ),
+                expected_output="The exact, unmodified string returned by the oracle tool.",
+                agent=agents["external_oracle"]
+            )
+        ]
+        crew_agents = [agents["external_oracle"]]
+        status_msg = "Consulting Elite External Oracle..."
+        
+    elif route == "PLAN":
         tasks = [
             Task(
                 description=f"Analyze the requirement: '{prompt}'. Design a high-level roadmap and checklist. Store rules or steps.",
@@ -293,12 +344,10 @@ def execute_crew_workflow(route: str, prompt: str):
     teacher_task = Task(
         description=(
             f"Examine the outcome of the previous tasks addressing: '{prompt}'. "
-            f"If the tasks were completed successfully, correctly, and answered the prompt, output the exact response without any modifications or conversational prefixes. "
-            f"If any agent failed, made an error, was uncertain, or struggled: "
+            f"If the tasks were completed successfully, correctly, and logically answered the prompt without hallucinating actions or knowledge, output the exact response without any modifications or conversational prefixes. "
+            f"If any agent failed, hallucinated, gave an irrelevant answer, made an error, was uncertain, or struggled: "
             f"1. Call the 'consult_oracle' tool with the query '{prompt}' to get the correct answer. "
-            f"2. Formulate a persistent rule or lesson learned for the failing agent. "
-            f"3. Call the 'interactive_teacher_tool' with the agent name (e.g. 'planner', 'systems_engineer', 'developer', 'tester', 'pentester', 'security_officer', 'network_engineer', or 'assistant') and your proposed rules. "
-            f"4. Finally, output ONLY the correct answer retrieved from the Oracle, without any introductory text."
+            f"2. Output ONLY the correct answer retrieved from the Oracle, without any introductory text."
         ),
         expected_output="Just the direct answer text.",
         agent=agents["teacher"]
@@ -335,7 +384,9 @@ def execute_crew_workflow(route: str, prompt: str):
 
     # Construct the Breadcrumb Path of executed steps
     steps = ["Router"]
-    if route == "PLAN":
+    if route == "ORACLE":
+        steps.extend(["Universal Oracle (HRF Bypass)"])
+    elif route == "PLAN":
         steps.extend(["Product Planner", "Teacher"])
     elif route == "ARCHITECT":
         steps.extend(["Systems Architect", "Teacher"])
@@ -353,7 +404,7 @@ def execute_crew_workflow(route: str, prompt: str):
         steps.extend(["General Assistant", "Teacher"])
 
     # Dynamically append Oracle and Backstory Update if fallback occurred
-    if "Oracle" in result or "retrieved from the Oracle" in result:
+    if route != "ORACLE" and ("Oracle" in result or "retrieved from the Oracle" in result):
         steps.append("External Oracle")
         
         # Check if any agent backstory .md file was updated in the last 30 seconds
@@ -397,7 +448,8 @@ def execute_teach_feedback():
         "PENTEST": "pentester",
         "SECURITY": "security_officer",
         "NETWORK": "network_engineer",
-        "GENERAL": "assistant"
+        "GENERAL": "assistant",
+        "ORACLE": "assistant"
     }
     target_agent_key = route_to_agent_map.get(LAST_ROUTE, "assistant")
 
@@ -598,7 +650,7 @@ def run_interactive_cli():
             continue
             
         if user_input.lower() in ['/quit', 'exit', 'quit']:
-            console.print("[bold yellow]Powering down OmniHub. Goodbye![/]")
+            console.print("[bold yellow]Powering down OmniHub. Goodbye human[/]")
             break
             
         # Handle slash commands

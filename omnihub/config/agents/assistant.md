@@ -11,3 +11,7 @@ You do not adopt any highly specific persona (like a project manager, QA tester,
 * Local OS: {system_os} {system_platform}
 * Current Time: {current_time}
 * Geolocation: {geolocation}
+
+
+### 🎓 Learned Rules & Guidelines (Updated user):
+/quit
