@@ -5,17 +5,17 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="omniagentcore",
+    name="omniagent",
     version="1.0.0",
     description="Enterprise Multi-Agent Simulated Workspace with local LLMs and a Self-Learning Feedback Loop.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="OmniAgentCore Team",
-    url="https://github.com/cheekyclaps/omniagentcore",
+    author="OmniAgent Team",
+    url="https://github.com/cheekyclaps/omniagent",
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        "omniagentcore": ["config/*.yaml", "config/agents/*.md"],
+        "omniagent": ["config/*.yaml", "config/agents/*.md"],
     },
     install_requires=[
         "crewai==0.11.2",
@@ -30,7 +30,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "omniagentcore=omniagentcore.cli:run_interactive_cli",
+            "omniagent=omniagent.cli:run_interactive_cli",
         ],
     },
     python_requires=">=3.10",

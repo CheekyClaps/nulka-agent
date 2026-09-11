@@ -1,6 +1,6 @@
 # 🎓 The Self-Learning Feedback Loop
 
-One of OmniAgentCore's most powerful features is its ability to *permanently learn from its mistakes*.
+One of OmniAgent's most powerful features is its ability to *permanently learn from its mistakes*.
 
 ## How it works
 
@@ -18,4 +18,4 @@ This interrupts standard execution and triggers the **Feedback Loop**:
 ## Persistent Memory
 Once approved, the rule is structurally appended to the bottom of the failing agent's Markdown backstory file under a `### 🎓 Learned Rules & Guidelines` header.
 
-Because OmniAgentCore dynamically loads these files at runtime, the agent permanently retains this knowledge and will apply it to all future sessions automatically!
+Because OmniAgent dynamically loads these files at runtime, the agent permanently retains this knowledge and will apply it to all future sessions automatically!

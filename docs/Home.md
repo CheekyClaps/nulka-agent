@@ -1,6 +1,6 @@
-# OmniAgentCore Wiki
+# OmniAgent Wiki
 
-Welcome to the official Wiki for **OmniAgentCore**, the Enterprise Multi-Agent Simulated Workspace.
+Welcome to the official Wiki for **OmniAgent**, the Enterprise Multi-Agent Simulated Workspace.
 
 ## Table of Contents
 1. [Core Architecture](Architecture.md)
@@ -8,6 +8,6 @@ Welcome to the official Wiki for **OmniAgentCore**, the Enterprise Multi-Agent S
 3. [Customizing Agents](Custom-Agents.md)
 
 ## Design Philosophy
-OmniAgentCore was built on the premise that prompt-engineering should be decoupled from python application logic. To achieve this, OmniAgentCore uses a YAML/Markdown split configuration structure. 
+OmniAgent was built on the premise that prompt-engineering should be decoupled from python application logic. To achieve this, OmniAgent uses a YAML/Markdown split configuration structure. 
 
 All meta configurations are stored in YAML, while long-form instructions, personas, and dynamically updated rules are kept cleanly in Markdown files. 
