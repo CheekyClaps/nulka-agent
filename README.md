@@ -27,7 +27,7 @@ OmniHub is a production-ready Python package. You can install it globally and la
 
 ```bash
 # Clone the repository
-git clone https://github.com/yourusername/omnihub.git
+git clone https://github.com/cheekyclaps/omnihub.git
 cd omnihub
 
 # Install globally or in a virtual environment

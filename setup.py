@@ -11,7 +11,7 @@ setup(
     long_description=long_description,
     long_description_content_type="text/markdown",
     author="OmniHub Team",
-    url="https://github.com/yourusername/omnihub",
+    url="https://github.com/cheekyclaps/omnihub",
     packages=find_packages(),
     include_package_data=True,
     package_data={
