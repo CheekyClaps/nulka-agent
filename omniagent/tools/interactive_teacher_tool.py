@@ -6,8 +6,12 @@ from rich.console import Console
 from rich.panel import Panel
 from prompt_toolkit import prompt
 from prompt_toolkit.styles import Style
+from prompt_toolkit.formatted_text import HTML
 
 console = Console()
+
+def get_bottom_toolbar():
+    return HTML(' <b>[A]</b> Accept   <b>[R]</b> Reject   <b>[Type Text]</b> Augment / Edit   <b>[Ctrl+C]</b> Cancel ')
 
 class TeacherToolInput(BaseModel):
     agent_name: str = Field(description="The name of the agent whose instructions need to be updated (e.g., 'developer', 'tester', 'assistant').")
@@ -63,12 +67,14 @@ class InteractiveTeacherTool(BaseTool):
 
         style = Style.from_dict({
             'prompt': 'ansicyan bold',
+            'bottom-toolbar': 'bg:#333333 #ffffff',
         })
 
         try:
-            # We use prompt_toolkit's prompt for interactive input
+            # We use prompt_toolkit's prompt for interactive input with a stylized bottom toolbar
             user_decision = prompt(
-                "Action: (A)ccept / (R)eject / Type custom rules to (Augment) > ",
+                "Feedback Action ❯ ",
+                bottom_toolbar=get_bottom_toolbar,
                 style=style
             ).strip()
         except (KeyboardInterrupt, EOFError):
