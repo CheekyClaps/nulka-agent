@@ -399,13 +399,12 @@ def execute_crew_workflow(route: str, prompt: str):
     # Append Educational Teacher task for continuous self-learning fallback
     teacher_task = Task(
         description=(
-            f"Examine the outcome of the previous tasks addressing: '{prompt}'. "
-            f"If the tasks were completed successfully, correctly, and logically answered the prompt without hallucinating actions or knowledge, output the exact response without any modifications or conversational prefixes. "
-            f"If any agent failed, hallucinated, gave an irrelevant answer, made an error, was uncertain, or struggled: "
-            f"1. Call the 'consult_oracle' tool with the query '{prompt}' to get the correct answer. "
-            f"2. Output ONLY the correct answer retrieved from the Oracle, without any introductory text."
+            f"Review the entire context and actions taken to address: '{prompt}'.\n"
+            f"- If the previous agents answered the question successfully and factually, return their exact final answer.\n"
+            f"- If the previous agents failed, hallucinated, or were unable to answer, YOU MUST call the 'consult_oracle' tool with the query '{prompt}' to get the absolute truth. Then, return the EXACT string returned by the Oracle.\n"
+            f"CRITICAL: Do not format your response as JSON. Do not add conversational filler. Return only the raw text of the final answer."
         ),
-        expected_output="Just the direct answer text.",
+        expected_output="The exact, raw string containing the final answer to the user's prompt.",
         agent=agents["teacher"]
     )
     tasks.append(teacher_task)
