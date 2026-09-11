@@ -69,12 +69,14 @@ def write_file_tool(file_path: str, content: str) -> str:
 
 @tool("search_workspace")
 def search_workspace_tool(pattern: str = "**/*.md") -> str:
-    """Searches the workspace for files matching a glob pattern (e.g. **/*.md or **/*.py)."""
+    """Searches the workspace for files matching a glob pattern (e.g. **/*.md or **/*.py). 
+    WARNING: Do NOT use broad patterns like '**/*' as it will return thousands of files and crash your context window. Always be highly specific."""
     try:
         files = glob.glob(pattern, recursive=True)
         if not files:
             return "No files found matching that pattern."
-        return "\n".join(files)
+        # Truncate output natively inside the tool to prevent terminal flooding during verbose runs
+        return format_condensed_output("\n".join(files), max_lines=100)
     except Exception as e:
         return f"Error searching workspace: {e}"
 
@@ -88,7 +90,9 @@ def run_shell_command_tool(command: str) -> str:
         output = result.stdout
         if result.stderr:
             output += f"\nError output:\n{result.stderr}"
-        return output.strip() if output.strip() else "Command executed successfully with no output."
+        raw_output = output.strip() if output.strip() else "Command executed successfully with no output."
+        # Truncate natively
+        return format_condensed_output(raw_output, max_lines=100)
     except Exception as e:
         return f"Failed to execute command: {e}"
 
@@ -156,12 +160,13 @@ def semantic_routing(prompt: str) -> str:
         "Your task is to classify the user's intent into ONE of the following categories:\n"
         "- 'PLAN': Wants requirements analysis, roadmaps, task breakdowns, or sprint setups.\n"
         "- 'ARCHITECT': Wants system architecture, framework evaluations, clean code design patterns, or diagrams.\n"
-        "- 'CODE': Wants functional coding, script creation, bug-fixing, refactoring, or source code modifications.\n"
+        "- 'CODE': Explicit requests to WRITE, MODIFY, or REFACTOR code files. DO NOT use this for simply locating or finding files.\n"
         "- 'TEST': Wants unit tests, functional verification suites, linter runs, or test execution.\n"
         "- 'PENTEST': Wants offensive audits, vulnerability scans, exploit PoCs, or security penetration.\n"
         "- 'SECURITY': Wants secure coding standards, cryptography reviews, regulatory audits, or secret detection.\n"
         "- 'NETWORK': Wants port mapping, firewall rule changes, proxy configs, or domain configuration.\n"
-        "- 'GENERAL': General tech explanations, chatting, or questions without action steps.\n\n"
+        "- 'GENERAL': General tech explanations, chatting, finding/locating files on disk, answering 'what', 'where', or 'how' questions without modifying code.\n\n"
+        "CRITICAL RULE: If the prompt is asking to find a file, read a file, or is a conversational inquiry, ALWAYS classify as GENERAL.\n\n"
         "Reply with ONLY the matching category name in capital letters (PLAN, ARCHITECT, CODE, TEST, PENTEST, SECURITY, NETWORK, or GENERAL).\n\n"
         f"Prompt: {prompt}"
     )
@@ -403,7 +408,8 @@ def execute_crew_workflow(route: str, prompt: str):
             process=Process.sequential,
             verbose=DEBUG_MODE
         )
-        result = crew.kickoff()
+        crew_output = crew.kickoff()
+        result_text = str(crew_output)
         
     # Determine header message and Panel title dynamically
     if route == "GENERAL":
@@ -435,7 +441,7 @@ def execute_crew_workflow(route: str, prompt: str):
         steps.extend(["General Assistant", "Teacher"])
 
     # Dynamically append Oracle and Backstory Update if fallback occurred
-    if route != "ORACLE" and ("Oracle" in result or "retrieved from the Oracle" in result):
+    if route != "ORACLE" and ("Oracle" in result_text or "retrieved from the Oracle" in result_text):
         steps.append("External Oracle")
         
         # Check if any agent backstory .md file was updated in the last 30 seconds
@@ -461,10 +467,10 @@ def execute_crew_workflow(route: str, prompt: str):
     
     # Save absolute raw output to global state for the /expand command
     global LAST_FULL_OUTPUT
-    LAST_FULL_OUTPUT = str(result)
+    LAST_FULL_OUTPUT = result_text
     
     # Condense string for UI display
-    condensed_result = format_condensed_output(LAST_FULL_OUTPUT)
+    condensed_result = format_condensed_output(result_text)
     console.print(Panel(condensed_result, title=f"[bold white]{title_str}[/]", border_style="green"))
     
     # Stabilize HRF baseline for the active model after a successful completion
