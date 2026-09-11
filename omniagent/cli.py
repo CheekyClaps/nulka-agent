@@ -220,6 +220,26 @@ def get_active_model_name() -> str:
         return loaded[0]
     return "qwen2.5-coder:latest"
 
+def scrutinize_prompt(prompt: str) -> str:
+    """Uses LLM to evaluate if a prompt has enough context to be executed."""
+    system_prompt = (
+        "You are the OmniAgent Requirements Scrutinizer. Analyze the user's prompt.\n"
+        "Does it lack critical context required to execute the request? (e.g., missing specific file names to read, missing physical location for spatial queries like finding a place, highly ambiguous goals).\n\n"
+        "RULES:\n"
+        "1. If it is perfectly actionable, or if it is a general conversational question, reply with ONLY the word: PROCEED\n"
+        "2. If it is missing critical context, reply ONLY with a short, direct question asking the user for the missing information. Do NOT say 'PROCEED'.\n\n"
+        f"User Prompt: {prompt}"
+    )
+    try:
+        response = ollama_llm.invoke(system_prompt).strip()
+        # Clean up possible conversational prefixes from LLM
+        if "PROCEED" in response.upper() and len(response) < 15:
+            return "PROCEED"
+        return response
+    except Exception as e:
+        console.print(f"[bold red]Router Error during scrutiny: {e}[/]")
+        return "PROCEED"
+
 def route_request(prompt: str) -> str:
     """Integrates LiteLLM Lexical-Semantic routing logic and dynamic HRF evaluation."""
     
@@ -698,6 +718,7 @@ def run_interactive_cli():
     console.print(Panel(welcome_text, title="[bold green]OmniAgent[/]", border_style="green"))
     
     from prompt_toolkit.history import FileHistory
+    from prompt_toolkit.styles import Style
     import os
     history_file = os.path.join(os.path.expanduser("~"), ".omniagent_history")
     session = PromptSession(history=FileHistory(history_file))
@@ -785,10 +806,27 @@ def run_interactive_cli():
                 console.print(f"[bold red]❌ Unknown command: {cmd}. Type /help to list commands.[/]")
                 continue
 
-        # Route the request
+        # 1. Scrutinize prompt for missing context
+        with console.status("[bold yellow]🤔 [Router] Scrutinizing prompt context...[/]"):
+            scrutiny_result = scrutinize_prompt(user_input)
+            
+        if scrutiny_result != "PROCEED":
+            console.print(f"[bold yellow]🤔 [Router Scrutiny]:[/] {scrutiny_result}")
+            try:
+                style = Style.from_dict({'prompt': 'ansicyan bold'})
+                clarification = session.prompt("Provide clarification ❯ ", style=style).strip()
+                if clarification:
+                    user_input = f"{user_input}\n\nUser Clarification: {clarification}"
+                else:
+                    console.print("[dim]No clarification provided. Proceeding with original prompt...[/dim]")
+            except (KeyboardInterrupt, EOFError):
+                console.print("\n[bold red]Cancelled prompt.[/bold red]")
+                continue
+
+        # 2. Route the request
         route = route_request(user_input)
         
-        # Execute workflow
+        # 3. Execute workflow
         try:
             execute_crew_workflow(route, user_input)
         except Exception as e:
