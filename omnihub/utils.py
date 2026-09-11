@@ -108,8 +108,8 @@ def instantiate_agents(custom_tools=None):
             # The educational director gets the interactive teaching tool and Oracle Consultant tool
             agent_tools.extend([interactive_teacher_tool, consult_oracle_tool])
             
-        # Give developer, tester, systems engineer full workspace access tools if passed
-        if custom_tools:
+        # Give workspace access tools if passed, BUT explicitly deny them to the external_oracle
+        if custom_tools and agent_key != "external_oracle":
             agent_tools.extend(custom_tools)
             
         # The teacher and router agents are allowed to delegate tasks to others

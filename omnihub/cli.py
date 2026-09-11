@@ -187,13 +187,28 @@ def calculate_hallucination_risk(prompt: str) -> int:
         
     return min(score, 10)
 
+from omnihub.hrf_manager import HRFManager
+
+# Initialize the global HRF Manager
+hrf_manager = HRFManager()
+
+def get_active_model_name() -> str:
+    """Helper to fetch the primary loaded model."""
+    loaded = get_loaded_models()
+    if loaded:
+        return loaded[0]
+    return "qwen2.5-coder:latest"
+
 def route_request(prompt: str) -> str:
-    """Integrates LiteLLM Lexical-Semantic routing logic and HRF evaluation."""
+    """Integrates LiteLLM Lexical-Semantic routing logic and dynamic HRF evaluation."""
     
     # 0. Evaluate Hallucination Risk Factor (HRF)
     hrf_score = calculate_hallucination_risk(prompt)
-    if hrf_score >= 7:
-        console.print(f"[bold yellow]⚠️ High Hallucination Risk Factor Detected ({hrf_score}/10). Defaulting to Universal Oracle...[/]")
+    active_model = get_active_model_name()
+    dynamic_threshold = hrf_manager.get_threshold(active_model)
+    
+    if hrf_score >= dynamic_threshold:
+        console.print(f"[bold yellow]⚠️ High Hallucination Risk Factor Detected ({hrf_score} >= threshold {dynamic_threshold:.1f}). Defaulting to Universal Oracle...[/]")
         return "ORACLE"
         
     # 1. Lexical fast-path
@@ -428,6 +443,11 @@ def execute_crew_workflow(route: str, prompt: str):
     console.print(f"\n[bold green]{completion_msg}[/]")
     console.print(f"{breadcrumb_trail}\n")
     console.print(Panel(result, title=f"[bold white]{title_str}[/]", border_style="green"))
+    
+    # Stabilize HRF baseline for the active model after a successful completion
+    active_model = get_active_model_name()
+    new_thresh = hrf_manager.stabilize(active_model)
+    # console.print(f"[dim]HRF stabilized to {new_thresh:.2f}[/dim]") # Hidden debug
 
 def execute_teach_feedback():
     """Triggers the learning loop on the last executed query robustly by manually invoking tools."""
@@ -469,7 +489,12 @@ def execute_teach_feedback():
     teacher_tool = InteractiveTeacherTool()
     result = teacher_tool._run(agent_name=target_agent_key, proposed_rules=proposed_rules)
 
+    # Automatically lower trust (doubt) because the local model failed
+    active_model = get_active_model_name()
+    new_thresh = hrf_manager.doubt(active_model)
+
     console.print("\n[bold green]✨ Feedback Learning Session Completed![/]")
+    console.print(f"[dim]Note: Local model trust decreased. HRF threshold is now {new_thresh:.2f}[/dim]")
     console.print(Panel(result, title="[bold white]Feedback Output[/]", border_style="yellow"))
 
 def show_ollama_models():
@@ -676,6 +701,29 @@ def run_interactive_cli():
             elif cmd in ["/teach", "/feedback"]:
                 execute_teach_feedback()
                 continue
+            elif cmd == "/trust":
+                active_model = get_active_model_name()
+                new_thresh = hrf_manager.trust(active_model)
+                console.print(f"[bold green]✅ Trust Increased for {active_model}. HRF threshold is now {new_thresh:.2f}[/]")
+                continue
+            elif cmd == "/doubt":
+                active_model = get_active_model_name()
+                new_thresh = hrf_manager.doubt(active_model)
+                console.print(f"[bold yellow]⚠️ Trust Decreased for {active_model}. HRF threshold is now {new_thresh:.2f}[/]")
+                continue
+            elif cmd == "/hrf":
+                active_model = get_active_model_name()
+                thresh = hrf_manager.get_threshold(active_model)
+                base = hrf_manager.get_baseline(active_model)
+                console.print(Panel(
+                    f"Active Model: [bold cyan]{active_model}[/bold cyan]\n"
+                    f"Current Threshold: [bold magenta]{thresh:.2f}[/bold magenta]\n"
+                    f"Baseline: [dim]{base:.2f}[/dim]\n\n"
+                    f"If a prompt's risk score exceeds this threshold, the query defaults to the Oracle.\n"
+                    f"Use [bold cyan]/trust[/] to raise the threshold and [bold yellow]/doubt[/] to lower it.",
+                    title="Hallucination Risk Factor (HRF) Status", border_style="blue"
+                ))
+                continue
             elif cmd in ["/help", "/commands"]:
                 console.print(Panel(
                     "Available Slash Commands:\n"
@@ -683,6 +731,9 @@ def run_interactive_cli():
                     "  [bold cyan]/pull <name>[/]   Download a new model from the Ollama library\n"
                     "  [bold cyan]/debug[/]         Toggle verbose agent thoughts & details\n"
                     "  [bold cyan]/teach[/]         Flag the last response as incomplete/incorrect & teach the agent\n"
+                    "  [bold cyan]/trust[/]         Trust the active model more (raises Oracle threshold)\n"
+                    "  [bold cyan]/doubt[/]         Trust the active model less (lowers Oracle threshold)\n"
+                    "  [bold cyan]/hrf[/]           Show current Hallucination Risk Factor settings\n"
                     "  [bold cyan]/quit[/]          Terminate the CLI session",
                     title="Help & Commands", border_style="blue"
                 ))
