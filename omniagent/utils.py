@@ -10,7 +10,9 @@ from omniagent.tools.interactive_teacher_tool import InteractiveTeacherTool
 from omniagent.tools.consult_oracle_tool import ConsultOracleTool
 
 # Setup standard local LLM
-ollama_llm = Ollama(model="qwen2.5-coder:latest", base_url="http://localhost:11434")
+# Allow user to override the default model via ~/.oac_env (e.g. LOCAL_MODEL="llama3.1")
+local_model_name = os.getenv("LOCAL_MODEL", "qwen2.5-coder:latest")
+ollama_llm = Ollama(model=local_model_name, base_url="http://localhost:11434")
 
 def get_system_context():
     """Gathers real-time environmental context metrics for the Router agent."""
