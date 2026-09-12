@@ -60,6 +60,23 @@ class HRFManager:
         self._save_state()
         return new_val
 
+    def bs(self, model_name: str, weight: float = 3.0):
+        """Instantly drops the threshold by a massive weight penalty."""
+        self._ensure_model(model_name)
+        current = self.state["models"][model_name]["current_threshold"]
+        new_val = max(1.0, current - float(weight))
+        self.state["models"][model_name]["current_threshold"] = new_val
+        self._save_state()
+        return new_val
+
+    def reset(self, model_name: str):
+        """Restores the model's trust completely back to its baseline (clean slate)."""
+        self._ensure_model(model_name)
+        baseline = self.state["models"][model_name]["baseline"]
+        self.state["models"][model_name]["current_threshold"] = baseline
+        self._save_state()
+        return baseline
+
     def stabilize(self, model_name: str):
         """Naturally drifts the threshold back toward the model's baseline."""
         self._ensure_model(model_name)

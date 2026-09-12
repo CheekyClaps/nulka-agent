@@ -55,6 +55,18 @@ def load_agent_configs(agents_yaml_path="config/agents.yaml"):
         
     context = get_system_context()
     
+    # Load Universal Ground Rules if they exist
+    ground_rules = ""
+    rules_path = os.path.expanduser("~/.omniagent_rules.md")
+    if os.path.exists(rules_path):
+        try:
+            with open(rules_path, "r") as f:
+                content = f.read().strip()
+                if content:
+                    ground_rules = f"\n\n### 🌍 Universal Ground Rules\n{content}"
+        except Exception:
+            pass
+    
     for agent_key, agent_config in agents_data.items():
         backstory_file = agent_config.get("backstory_file")
         if backstory_file:
@@ -77,6 +89,10 @@ def load_agent_configs(agents_yaml_path="config/agents.yaml"):
                     formatted_backstory = raw_backstory
                     for var in ["system_os", "system_platform", "current_time", "geolocation"]:
                         formatted_backstory = formatted_backstory.replace(f"{{{var}}}", str(context.get(var, "")))
+                
+                # Inject universal ground rules
+                if ground_rules:
+                    formatted_backstory += ground_rules
                 
                 agent_config["backstory"] = formatted_backstory
             else:

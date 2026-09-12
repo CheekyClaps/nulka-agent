@@ -16,6 +16,17 @@ class OracleCLITool(BaseTool):
         Args:
             prompt: The text prompt/query to send to the Oracle CLI tool.
         """
+        # Inject Universal Ground Rules if they exist
+        rules_path = os.path.expanduser("~/.omniagent_rules.md")
+        if os.path.exists(rules_path):
+            try:
+                with open(rules_path, "r") as f:
+                    content = f.read().strip()
+                    if content:
+                        prompt = f"### 🌍 Universal Ground Rules:\n{content}\n\n### User Query:\n{prompt}"
+            except Exception:
+                pass
+
         # Fetch configured oracle command from environment (with default fallback)
         oracle_cmd_str = os.getenv("ORACLE_CMD", "gemini --prompt")
         

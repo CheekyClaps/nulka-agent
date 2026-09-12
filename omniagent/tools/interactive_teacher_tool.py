@@ -34,14 +34,14 @@ class InteractiveTeacherTool(BaseTool):
         if agent_name_clean not in valid_agents:
             console.print(f"\n[bold red]⚠️  Teacher Agent proposed an invalid agent name: '{agent_name}'.[/bold red]")
             console.print(f"Available agents to update: {', '.join(valid_agents)}")
-            try:
-                # We use prompt_toolkit's prompt for interactive input
-                style = Style.from_dict({'prompt': 'ansiyellow bold'})
-                agent_name_clean = prompt(
-                    "Please enter the correct agent name to update (or leave blank to skip) > ",
-                    style=style
-                ).strip().lower().replace(".md", "")
-            except (KeyboardInterrupt, EOFError):
+            
+            from omniagent.core.state import ask_user_safe
+            agent_name_clean = ask_user_safe(
+                "Please enter the correct agent name to update (or leave blank to skip) > ",
+                style_dict={'prompt': 'ansiyellow bold'}
+            ).lower().replace(".md", "")
+            
+            if not agent_name_clean:
                 return "User interrupted the interactive update process. No changes were made."
 
         if not agent_name_clean or agent_name_clean not in valid_agents:
@@ -65,23 +65,14 @@ class InteractiveTeacherTool(BaseTool):
             border_style="yellow"
         ))
 
-        style = Style.from_dict({
-            'prompt': 'ansicyan bold',
-            'bottom-toolbar': 'bg:#333333 #ffffff',
-        })
-
-        try:
-            # We use prompt_toolkit's prompt for interactive input with a stylized bottom toolbar
-            user_decision = prompt(
-                "Feedback Action ❯ ",
-                bottom_toolbar=get_bottom_toolbar,
-                style=style
-            ).strip()
-        except (KeyboardInterrupt, EOFError):
-            return "User interrupted the interactive update process. No changes were made."
+        from omniagent.core.state import ask_user_safe
+        user_decision = ask_user_safe(
+            "Feedback Action ([A]ccept / [R]eject / Type custom rules) ❯ ",
+            style_dict={'prompt': 'ansicyan bold'}
+        )
 
         if not user_decision:
-            return "No decision received. Skipping update."
+            return "No decision received or process interrupted. Skipping update."
 
         decision_lower = user_decision.lower()
 

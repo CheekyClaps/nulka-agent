@@ -105,10 +105,7 @@ agents = instantiate_agents(custom_tools=workspace_tools)
 # Global Debug Mode to control agent thought verbosity
 DEBUG_MODE = False
 
-# Global state to support the /teach feedback loop and /expand condenser
-LAST_USER_PROMPT = None
-LAST_ROUTE = None
-LAST_FULL_OUTPUT = None
+from omniagent.core.state import state
 
 def format_condensed_output(text: str, max_lines: int = 40) -> str:
     """Smartly truncates massive string outputs for the terminal UI."""
@@ -224,30 +221,65 @@ def scrutinize_prompt(prompt: str) -> str:
     """Uses LLM to evaluate if a prompt has enough context to be executed."""
     system_prompt = (
         "You are the OmniAgent Requirements Scrutinizer. Analyze the user's prompt.\n"
-        "Does it lack critical context required to execute the request? (e.g., missing specific file names to read, missing physical location for spatial queries like finding a place, highly ambiguous goals).\n\n"
-        "RULES:\n"
-        "1. If it is perfectly actionable, or if it is a general conversational question, reply with ONLY the word: PROCEED\n"
-        "2. If it is missing critical context, reply ONLY with a short, direct question asking the user for the missing information. Do NOT say 'PROCEED'.\n\n"
+        "Determine if the prompt is missing critical, structural context required to execute (such as a missing filename for file-reading, missing code file for testing, or missing location for geo-spatial queries).\n\n"
+        "CRITICAL RULES:\n"
+        "1. If the prompt is a general question, conversational query, recipe, creative writing, general code creation from scratch, or can be answered using reasonable default choices, you MUST reply with ONLY the word: PROCEED\n"
+        "2. Only ask for clarification if it is logically impossible to proceed without specific files, directories, or exact variables that are absent.\n"
+        "3. Your response must be EXACTLY 'PROCEED' (one word) if you can proceed. Otherwise, reply ONLY with a single direct question asking for the missing specific file/context.\n\n"
         f"User Prompt: {prompt}"
     )
     try:
         response = ollama_llm.invoke(system_prompt).strip()
-        # Clean up possible conversational prefixes from LLM
-        if "PROCEED" in response.upper() and len(response) < 15:
+        # Clean up possible conversational prefixes or thought blocks from LLM
+        cleaned_response = response.strip()
+        if "PROCEED" in cleaned_response.upper():
             return "PROCEED"
-        return response
+        # If the response doesn't even contain a question mark, it's highly likely to be a statement/rambling, so proceed.
+        if "?" not in cleaned_response:
+            return "PROCEED"
+        return cleaned_response
     except Exception as e:
         console.print(f"[bold red]Router Error during scrutiny: {e}[/]")
         return "PROCEED"
 
 def route_request(prompt: str) -> str:
     """Integrates LiteLLM Lexical-Semantic routing logic and dynamic HRF evaluation."""
-    
+
     # 0. Evaluate Hallucination Risk Factor (HRF)
     hrf_score = calculate_hallucination_risk(prompt)
     active_model = get_active_model_name()
     dynamic_threshold = hrf_manager.get_threshold(active_model)
-    
+
+    # ZERO TRUST MITIGATION LOGIC
+    if dynamic_threshold <= 1.0:
+        console.print("\n[bold red]⚠️  ZERO TRUST LOCKDOWN ACTIVE  ⚠️[/bold red]")
+        console.print(f"[yellow]The local model '{active_model}' has completely lost your trust.[/yellow]")
+        console.print("[dim]Routing 100% of prompts to the External Oracle.[/dim]")
+
+        # Check for model swap possibility
+        available_models = [m for m in get_local_models() if m != active_model]
+        if available_models:
+            console.print("\n[bold cyan]💡 Mitigation Available: Switch to a different Local Model?[/bold cyan]")
+            from omniagent.core.state import ask_user_safe
+            choice = ask_user_safe("Select option ❯ ", style_dict={'prompt': 'ansicyan bold'}).lower()
+            if choice and choice != 's':
+                try:
+                    idx = int(choice)
+                    if 0 <= idx < len(available_models):
+                        new_model = available_models[idx]
+                        # Save new active model to .oac_env config
+                        import os
+                        from dotenv import set_key
+                        CONFIG_PATH = os.path.expanduser("~/.oac_env")
+                        set_key(CONFIG_PATH, "LOCAL_MODEL", new_model)
+                        console.print(f"[bold green]✅ Success! Active model swapped to {new_model}.[/bold green]")
+                        console.print("[yellow]Please restart OmniAgent for the core swap to take effect![/yellow]")
+                        return "SWAP_RESTART"
+                except ValueError:
+                    pass
+
+            return "ORACLE"
+
     if hrf_score >= dynamic_threshold:
         console.print(f"[bold yellow]⚠️ High Hallucination Risk Factor Detected ({hrf_score} >= threshold {dynamic_threshold:.1f}). Defaulting to Universal Oracle...[/]")
         return "ORACLE"
@@ -391,35 +423,18 @@ def execute_crew_workflow(route: str, prompt: str):
         crew_agents = [agents["assistant"]]
         status_msg = "General Assistant is gathering information..."
 
-    # Update global tracking state for the /teach feedback loop
-    global LAST_USER_PROMPT, LAST_ROUTE
-    LAST_USER_PROMPT = prompt
-    LAST_ROUTE = route
-
-    # Append Educational Teacher task for continuous self-learning fallback
-    teacher_task = Task(
-        description=(
-            f"Review the entire context and actions taken to address: '{prompt}'.\n"
-            f"- If the previous agents answered the question successfully and factually, return their exact final answer.\n"
-            f"- If the previous agents failed, hallucinated, or were unable to answer, YOU MUST call the 'consult_oracle' tool with the query '{prompt}' to get the absolute truth. Then, return the EXACT string returned by the Oracle.\n"
-            f"CRITICAL: Do not format your response as JSON. Do not add conversational filler. Return only the raw text of the final answer."
-        ),
-        expected_output="The exact, raw string containing the final answer to the user's prompt.",
-        agent=agents["teacher"]
-    )
-    tasks.append(teacher_task)
-
-    # Ensure learning loop agents are in the crew
-    if agents["teacher"] not in crew_agents:
-        crew_agents.append(agents["teacher"])
-    if agents["external_oracle"] not in crew_agents:
-        crew_agents.append(agents["external_oracle"])
+    # Update state tracking for the /teach feedback loop
+    state.last_user_prompt = prompt
+    state.last_route = route
 
     # Apply debug/verbosity settings dynamically to all agents in the current crew
     for agent in crew_agents:
         agent.verbose = DEBUG_MODE
 
     # Execute dynamic Crew
+    import time
+    start_time = time.time()
+    
     with console.status(f"[bold green]🚀 {status_msg}[/]") as status:
         crew = Crew(
             agents=crew_agents,
@@ -430,6 +445,9 @@ def execute_crew_workflow(route: str, prompt: str):
         crew_output = crew.kickoff()
         result_text = str(crew_output)
         
+    end_time = time.time()
+    state.last_execution_time = end_time - start_time
+
     # Determine header message and Panel title dynamically
     if route == "GENERAL":
         completion_msg = "✨ Answer Completed!"
@@ -443,40 +461,26 @@ def execute_crew_workflow(route: str, prompt: str):
     if route == "ORACLE":
         steps.extend(["Universal Oracle (HRF Bypass)"])
     elif route == "PLAN":
-        steps.extend(["Product Planner", "Teacher"])
+        steps.extend(["Product Planner"])
     elif route == "ARCHITECT":
-        steps.extend(["Systems Architect", "Teacher"])
+        steps.extend(["Systems Architect"])
     elif route == "CODE":
-        steps.extend(["Developer", "QA Tester", "Security Officer", "Teacher"])
+        steps.extend(["Developer", "QA Tester", "Security Officer"])
     elif route == "TEST":
-        steps.extend(["QA Tester", "Teacher"])
+        steps.extend(["QA Tester"])
     elif route == "PENTEST":
-        steps.extend(["Pentester", "Teacher"])
+        steps.extend(["Pentester"])
     elif route == "SECURITY":
-        steps.extend(["Security Officer", "Teacher"])
+        steps.extend(["Security Officer"])
     elif route == "NETWORK":
-        steps.extend(["Network Engineer", "Teacher"])
+        steps.extend(["Network Engineer"])
     else: # GENERAL
-        steps.extend(["General Assistant", "Teacher"])
+        steps.extend(["General Assistant"])
 
-    # Dynamically append Oracle and Backstory Update if fallback occurred
-    if route != "ORACLE" and ("Oracle" in result_text or "retrieved from the Oracle" in result_text):
-        steps.append("External Oracle")
-        
-        # Check if any agent backstory .md file was updated in the last 30 seconds
-        import time
-        recently_modified = False
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-        agents_dir = os.path.join(base_dir, "config", "agents")
-        for md_file in glob.glob(os.path.join(agents_dir, "*.md")):
-            try:
-                if time.time() - os.path.getmtime(md_file) < 30:
-                    recently_modified = True
-                    break
-            except Exception:
-                pass
-        if recently_modified:
-            steps.append("Backstory Updated")
+    # Dynamically check if the Oracle CLI Tool was invoked during this run
+    if "Oracle Answer Retrieved" in result_text or "Oracle CLI" in result_text or "retrieved from the Oracle" in result_text:
+        if route != "ORACLE": # Prevent duplicating the step if already added
+            steps.append("External Oracle Fallback")
 
     # Render breadcrumb trail cleanly
     breadcrumb_trail = " ➔ ".join([f"[bold cyan]{step}[/]" for step in steps])
@@ -484,9 +488,8 @@ def execute_crew_workflow(route: str, prompt: str):
     console.print(f"\n[bold green]{completion_msg}[/]")
     console.print(f"{breadcrumb_trail}\n")
     
-    # Save absolute raw output to global state for the /expand command
-    global LAST_FULL_OUTPUT
-    LAST_FULL_OUTPUT = result_text
+    # Save absolute raw output to state for the /expand command
+    state.last_full_output = result_text
     
     # Condense string for UI display
     condensed_result = format_condensed_output(result_text)
@@ -499,13 +502,12 @@ def execute_crew_workflow(route: str, prompt: str):
 
 def execute_teach_feedback():
     """Triggers the learning loop on the last executed query robustly by manually invoking tools."""
-    global LAST_USER_PROMPT, LAST_ROUTE
-    if not LAST_USER_PROMPT or not LAST_ROUTE:
+    if not state.last_user_prompt or not state.last_route:
         console.print("[bold red]❌ No previous query found to teach from. Please submit a query first.[/]")
         return
 
     console.print(f"\n[bold yellow]🎓 [Onboarding Feedback Loop] Activating Teacher...[/bold yellow]")
-    console.print(f"Teaching from query: [bold cyan]'{LAST_USER_PROMPT}'[/bold cyan] (Route: [bold magenta]{LAST_ROUTE}[/bold magenta])")
+    console.print(f"Teaching from query: [bold cyan]'{state.last_user_prompt}'[/bold cyan] (Route: [bold magenta]{state.last_route}[/bold magenta])")
 
     # Map the LAST_ROUTE to the correct agent filename/key to update
     route_to_agent_map = {
@@ -519,7 +521,7 @@ def execute_teach_feedback():
         "GENERAL": "assistant",
         "ORACLE": "assistant"
     }
-    target_agent_key = route_to_agent_map.get(LAST_ROUTE, "assistant")
+    target_agent_key = route_to_agent_map.get(state.last_route, "assistant")
 
     console.print("[bold yellow]🚀 Consulting the External Oracle...[/]")
     from omniagent.tools.oracle_cli_tool import OracleCLITool
@@ -527,12 +529,38 @@ def execute_teach_feedback():
     
     # 1. Fetch Oracle Truth manually
     oracle_tool = OracleCLITool()
-    oracle_answer = oracle_tool._run(LAST_USER_PROMPT)
+    oracle_answer = oracle_tool._run(state.last_user_prompt)
     
     console.print(f"\n[bold green]✨ Oracle Answer Retrieved:[/]\n{oracle_answer}\n")
     
-    # 2. Invoke Interactive Tool manually
-    proposed_rules = f"When asked '{LAST_USER_PROMPT}', the correct information is:\n{oracle_answer}\nAlways ensure this context is applied."
+    # Check if Oracle failed (e.g., timeout, connection error, cmd not found, etc.)
+    oracle_failed = (
+        oracle_answer.startswith("Error:") or 
+        oracle_answer.startswith("An unexpected error occurred") or
+        "returned error code" in oracle_answer or
+        "timed out" in oracle_answer.lower()
+    )
+
+    if oracle_failed:
+        console.print(f"\n[bold red]⚠️  The External Oracle query failed or timed out: [/bold red]")
+        console.print(f"[yellow]{oracle_answer}[/yellow]\n")
+        console.print("[bold yellow]Because the Oracle is unavailable, we cannot auto-formulate a lesson from it.[/bold yellow]")
+        console.print("However, you can still formulate your own manual 'Lesson Learned' rule below, or leave it blank to cancel.")
+        
+        from omniagent.core.state import ask_user_safe
+        custom_rule = ask_user_safe(
+            "\nEnter your custom 'Lesson Learned' rule (or press Enter to cancel) ❯ ",
+            style_dict={'prompt': 'ansiyellow bold'}
+        )
+
+        if not custom_rule:
+            console.print("[bold yellow]Teaching session cancelled. No rule added.[/bold yellow]")
+            return
+
+        proposed_rules = f"When asked '{state.last_user_prompt}', the correct guideline/action is:\n{custom_rule}\nAlways ensure this context is applied."
+    else:
+        # 2. Invoke Interactive Tool manually
+        proposed_rules = f"When asked '{state.last_user_prompt}', the correct information is:\n{oracle_answer}\nAlways ensure this context is applied."
     
     teacher_tool = InteractiveTeacherTool()
     result = teacher_tool._run(agent_name=target_agent_key, proposed_rules=proposed_rules)
@@ -547,13 +575,12 @@ def execute_teach_feedback():
 
 def execute_expand_pager():
     """Opens the LAST_FULL_OUTPUT in a native full-screen terminal pager."""
-    global LAST_FULL_OUTPUT
-    if not LAST_FULL_OUTPUT:
+    if not state.last_full_output:
         console.print("[bold red]❌ No previous output to expand. Please run a query first.[/]")
         return
         
     with console.pager():
-        console.print(LAST_FULL_OUTPUT)
+        console.print(state.last_full_output)
 
 def show_ollama_models():
     """Renders a beautiful table of installed and loaded models."""
@@ -634,19 +661,14 @@ def run_onboarding_wizard():
             console.print(f"  [[bold cyan]{i}[/]] {cli}")
         console.print("  [[bold cyan]c[/]] Enter a custom command string")
         
-        try:
-            choice = prompt("Select option [default: 0] > ", style=style).strip().lower()
-        except (KeyboardInterrupt, EOFError):
+        from omniagent.core.state import ask_user_safe
+        choice = ask_user_safe("Select option [default: 0] > ", style_dict={'prompt': 'ansicyan bold'}).lower()
+        if not choice:
             console.print("\n[bold red]Onboarding cancelled. Falling back to default 'gemini --prompt'.[/bold red]")
             choice = "0"
-            
-        choice = choice or "0"
         
         if choice == 'c':
-            try:
-                custom_cmd = prompt("Enter your custom CLI command string (e.g. chatgpt -p) > ", style=style).strip()
-            except (KeyboardInterrupt, EOFError):
-                custom_cmd = ""
+            custom_cmd = ask_user_safe("Enter your custom CLI command string (e.g. chatgpt -p) > ", style_dict={'prompt': 'ansicyan bold'})
             oracle_cmd = custom_cmd if custom_cmd else "gemini --prompt"
         else:
             try:
@@ -660,10 +682,8 @@ def run_onboarding_wizard():
                 oracle_cmd = "gemini --prompt"
     else:
         console.print("\n[bold yellow]No standard AI CLIs were found on your PATH.[/bold yellow]")
-        try:
-            custom_cmd = prompt("Enter your Oracle CLI command string [default: gemini --prompt] > ", style=style).strip()
-        except (KeyboardInterrupt, EOFError):
-            custom_cmd = ""
+        from omniagent.core.state import ask_user_safe
+        custom_cmd = ask_user_safe("Enter your Oracle CLI command string [default: gemini --prompt] > ", style_dict={'prompt': 'ansicyan bold'})
         oracle_cmd = custom_cmd if custom_cmd else "gemini --prompt"
         
     console.print(f"\n[bold green]✅ Configured Oracle Command:[/] [bold magenta]{oracle_cmd}[/bold magenta]")
@@ -682,6 +702,7 @@ def run_onboarding_wizard():
 
 def run_interactive_cli():
     import os
+    global DEBUG_MODE
     # 0. Onboarding Check
     if not os.path.exists(CONFIG_PATH) and not os.getenv("ORACLE_CMD"):
         run_onboarding_wizard()
@@ -718,13 +739,30 @@ def run_interactive_cli():
     
     from prompt_toolkit.history import FileHistory
     from prompt_toolkit.styles import Style
+    from prompt_toolkit.formatted_text import HTML
     import os
     history_file = os.path.join(os.path.expanduser("~"), ".omniagent_history")
+    
+    def get_metrics_toolbar():
+        if not state.show_metrics:
+            return None
+        active = get_active_model_name()
+        hrf = hrf_manager.get_threshold(active)
+        route_info = f"Route: {state.last_route}" if state.last_route else "Route: N/A"
+        time_info = f"{state.last_execution_time:.2f}s" if state.last_execution_time else "N/A"
+        return HTML(f' <b>Metrics</b> | Time: <ansiyellow>{time_info}</ansiyellow> | {route_info} | Active Model: <ansicyan>{active}</ansicyan> | HRF Thresh: <ansimagenta>{hrf:.1f}</ansimagenta> ')
+
     session = PromptSession(history=FileHistory(history_file))
     
     while True:
         try:
-            user_input = session.prompt("\n✦ ❯ ")
+            # We style the bottom toolbar slightly if metrics are on
+            style_dict = {}
+            if state.show_metrics:
+                style_dict['bottom-toolbar'] = 'bg:#222222 #ffffff'
+            prompt_style = Style.from_dict(style_dict)
+            
+            user_input = session.prompt("\n✦ ❯ ", bottom_toolbar=get_metrics_toolbar, style=prompt_style)
         except (KeyboardInterrupt, EOFError):
             console.print("\n[bold yellow]Exiting. Goodbye![/]")
             break
@@ -742,7 +780,12 @@ def run_interactive_cli():
             parts = user_input.split()
             cmd = parts[0].lower()
             
-            if cmd == "/models":
+            if cmd == "/metrics":
+                state.show_metrics = not state.show_metrics
+                status_str = "[bold green]ON[/bold green]" if state.show_metrics else "[bold red]OFF[/bold red]"
+                console.print(f"📊 [bold]Metrics Toolbar:[/bold] {status_str}")
+                continue
+            elif cmd == "/models":
                 show_ollama_models()
                 continue
             elif cmd == "/pull":
@@ -752,7 +795,6 @@ def run_interactive_cli():
                     pull_ollama_model(parts[1])
                 continue
             elif cmd == "/debug":
-                global DEBUG_MODE
                 DEBUG_MODE = not DEBUG_MODE
                 status_str = "[bold green]ON[/bold green]" if DEBUG_MODE else "[bold red]OFF[/bold red]"
                 console.print(f"⚙️  [bold]Debug Mode (Verbose Agent Thoughts):[/bold] {status_str}")
@@ -770,6 +812,28 @@ def run_interactive_cli():
                 new_thresh = hrf_manager.doubt(active_model)
                 console.print(f"[bold yellow]⚠️ Trust Decreased for {active_model}. HRF threshold is now {new_thresh:.2f}[/]")
                 continue
+            elif cmd == "/bs":
+                weight = 3.0
+                if len(parts) > 1:
+                    try:
+                        weight = float(parts[1])
+                    except ValueError:
+                        pass
+                active_model = get_active_model_name()
+                new_thresh = hrf_manager.bs(active_model, weight)
+                console.print(f"[bold red]🚨 Bullshit Penalty Applied (-{weight}) to {active_model}![/bold red]")
+                console.print(f"HRF threshold plummeted to {new_thresh:.2f}")
+                if new_thresh <= 1.0:
+                    console.print("\n[bold red]⚠️ ZERO TRUST MODE INITIATED ⚠️[/bold red]")
+                    console.print("The local model has lost all trust. All future queries will be locked down and routed to the External Oracle.")
+                    console.print("Type [bold cyan]/forgive[/bold cyan] to reset trust back to baseline.")
+                continue
+            elif cmd in ["/forgive", "/reset"]:
+                active_model = get_active_model_name()
+                new_thresh = hrf_manager.reset(active_model)
+                console.print(f"[bold green]🕊️ Trust Forgiven. The local model {active_model} has been granted a clean slate.[/bold green]")
+                console.print(f"HRF threshold restored to baseline: {new_thresh:.2f}")
+                continue
             elif cmd == "/hrf":
                 active_model = get_active_model_name()
                 thresh = hrf_manager.get_threshold(active_model)
@@ -779,7 +843,7 @@ def run_interactive_cli():
                     f"Current Threshold: [bold magenta]{thresh:.2f}[/bold magenta]\n"
                     f"Baseline: [dim]{base:.2f}[/dim]\n\n"
                     f"If a prompt's risk score exceeds this threshold, the query defaults to the Oracle.\n"
-                    f"Use [bold cyan]/trust[/] to raise the threshold and [bold yellow]/doubt[/] to lower it.",
+                    f"Use [bold cyan]/trust[/] to raise the threshold, [bold yellow]/doubt[/] to lower it, and [bold red]/bs[/] to penalize it heavily.",
                     title="Hallucination Risk Factor (HRF) Status", border_style="blue"
                 ))
                 continue
@@ -788,16 +852,21 @@ def run_interactive_cli():
                 continue
             elif cmd in ["/help", "/commands"]:
                 console.print(Panel(
-                    "Available Slash Commands:\n"
-                    "  [bold cyan]/models[/]        Show downloaded & loaded Ollama models\n"
-                    "  [bold cyan]/pull <name>[/]   Download a new model from the Ollama library\n"
-                    "  [bold cyan]/debug[/]         Toggle verbose agent thoughts & details\n"
-                    "  [bold cyan]/expand[/]        View the last truncated output in a full-screen pager\n"
-                    "  [bold cyan]/teach[/]         Flag the last response as incomplete/incorrect & teach the agent\n"
-                    "  [bold cyan]/trust[/]         Trust the active model more (raises Oracle threshold)\n"
-                    "  [bold cyan]/doubt[/]         Trust the active model less (lowers Oracle threshold)\n"
-                    "  [bold cyan]/hrf[/]           Show current Hallucination Risk Factor settings\n"
-                    "  [bold cyan]/quit[/]          Terminate the CLI session",
+                    "[bold yellow]Core & Display[/bold yellow]\n"
+                    "  [bold cyan]/expand[/]          View the last truncated output in a full-screen pager\n"
+                    "  [bold cyan]/metrics[/]         Toggle the live bottom toolbar for performance metrics\n"
+                    "  [bold cyan]/debug[/]           Toggle verbose agent thoughts & details\n"
+                    "  [bold cyan]/quit[/]            Terminate the CLI session\n\n"
+                    "[bold yellow]Learning & Trust (HRF)[/bold yellow]\n"
+                    "  [bold cyan]/teach[/]           Flag the last response as incomplete & teach the agent\n"
+                    "  [bold cyan]/hrf[/]             Show current Hallucination Risk Factor settings\n"
+                    "  [bold cyan]/trust[/]           Trust the active model more (raises Oracle threshold)\n"
+                    "  [bold cyan]/doubt[/]           Trust the active model less (lowers Oracle threshold)\n"
+                    "  [bold cyan]/bs [weight][/]    Apply a massive hallucination penalty to drop trust instantly\n"
+                    "  [bold cyan]/forgive[/]         Reset trust completely back to its clean-slate baseline\n\n"
+                    "[bold yellow]Model Management[/bold yellow]\n"
+                    "  [bold cyan]/models[/]          Show downloaded & loaded Ollama models\n"
+                    "  [bold cyan]/pull <name>[/]     Download a new model from the Ollama library",
                     title="Help & Commands", border_style="blue"
                 ))
                 continue
@@ -824,6 +893,8 @@ def run_interactive_cli():
 
         # 2. Route the request
         route = route_request(user_input)
+        if route == "SWAP_RESTART":
+            break
         
         # 3. Execute workflow
         try:
