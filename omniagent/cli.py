@@ -212,7 +212,7 @@ def get_active_model_name() -> str:
     loaded = get_loaded_models()
     if loaded:
         return loaded[0]
-    return "qwen2.5-coder:latest"
+    return os.getenv("LOCAL_MODEL", "Offline/Unknown")
 
 def scrutinize_prompt(prompt: str) -> str:
     """Uses LLM to evaluate if a prompt has enough context to be executed."""

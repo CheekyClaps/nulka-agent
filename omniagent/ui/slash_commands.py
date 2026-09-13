@@ -11,7 +11,7 @@ def get_active_model_name() -> str:
     loaded = get_loaded_models()
     if loaded:
         return loaded[0]
-    return "qwen2.5-coder:latest"
+    return os.getenv("LOCAL_MODEL", "Offline/Unknown")
 
 # Note: console, execute_teach_feedback, execute_expand_pager are imported/passed where needed
 # to avoid massive circular imports, we will keep the heavy lifting in cli.py or pass callables.

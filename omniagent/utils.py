@@ -11,7 +11,7 @@ from omniagent.tools.consult_oracle_tool import ConsultOracleTool
 
 # Setup standard local LLM
 # Allow user to override the default model via ~/.oac_env (e.g. LOCAL_MODEL="llama3.1")
-local_model_name = os.getenv("LOCAL_MODEL", "qwen2.5-coder:latest")
+local_model_name = os.getenv("LOCAL_MODEL", "unknown")
 ollama_llm = Ollama(model=local_model_name, base_url="http://localhost:11434")
 
 def get_system_context():

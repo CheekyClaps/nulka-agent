@@ -10,7 +10,7 @@ def get_active_model_name() -> str:
     loaded = get_loaded_models()
     if loaded:
         return loaded[0]
-    return "qwen2.5-coder:latest"
+    return os.getenv("LOCAL_MODEL", "Offline/Unknown")
 
 class StatusBar:
     @staticmethod
@@ -21,12 +21,12 @@ class StatusBar:
 
         # Retrieve active models and thresholds
         active_local = get_active_model_name()
-        hrf = hrf_manager.get_threshold(active_local)
+        hrf = hrf_manager.get_threshold(active_local) if active_local != "Offline/Unknown" else 0.0
         
         # Determine Oracle cmd (Fallback)
-        oracle_cmd = os.getenv("ORACLE_CMD", "gemini")
+        oracle_cmd = os.getenv("ORACLE_CMD", "Unknown")
         # Just extract the base binary name for cleaner display
-        oracle_model = oracle_cmd.split()[0] if oracle_cmd else "None"
+        oracle_model = oracle_cmd.split()[0] if oracle_cmd and oracle_cmd != "Unknown" else "None"
         
         # Execution metrics
         route_info = f"Route: {state.last_route}" if state.last_route else "Route: N/A"
