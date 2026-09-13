@@ -739,20 +739,16 @@ def run_interactive_cli():
     
     from prompt_toolkit.history import FileHistory
     from prompt_toolkit.styles import Style
-    from prompt_toolkit.formatted_text import HTML
     import os
     history_file = os.path.join(os.path.expanduser("~"), ".omniagent_history")
     
-    def get_metrics_toolbar():
-        if not state.show_metrics:
-            return None
-        active = get_active_model_name()
-        hrf = hrf_manager.get_threshold(active)
-        route_info = f"Route: {state.last_route}" if state.last_route else "Route: N/A"
-        time_info = f"{state.last_execution_time:.2f}s" if state.last_execution_time else "N/A"
-        return HTML(f' <b>Metrics</b> | Time: <ansiyellow>{time_info}</ansiyellow> | {route_info} | Active Model: <ansicyan>{active}</ansicyan> | HRF Thresh: <ansimagenta>{hrf:.1f}</ansimagenta> ')
+    from omniagent.ui.statusbar import StatusBar
+    from omniagent.ui.slash_commands import handle_slash_command
 
     session = PromptSession(history=FileHistory(history_file))
+    
+    import sys
+    this_module = sys.modules[__name__]
     
     while True:
         try:
@@ -762,7 +758,12 @@ def run_interactive_cli():
                 style_dict['bottom-toolbar'] = 'bg:#222222 #ffffff'
             prompt_style = Style.from_dict(style_dict)
             
-            user_input = session.prompt("\n✦ ❯ ", bottom_toolbar=get_metrics_toolbar, style=prompt_style)
+            user_input = session.prompt(
+                "\n✦ ❯ ", 
+                bottom_toolbar=StatusBar.get_toolbar, 
+                style=prompt_style,
+                vi_mode=state.vim_mode
+            )
         except (KeyboardInterrupt, EOFError):
             console.print("\n[bold yellow]Exiting. Goodbye![/]")
             break
@@ -775,104 +776,12 @@ def run_interactive_cli():
             console.print("[bold yellow]Powering down OmniAgent. Goodbye human[/]")
             break
             
-        # Handle slash commands
+        # Handle slash commands using the new dedicated handler
         if user_input.startswith("/"):
             parts = user_input.split()
             cmd = parts[0].lower()
-            
-            if cmd == "/metrics":
-                state.show_metrics = not state.show_metrics
-                status_str = "[bold green]ON[/bold green]" if state.show_metrics else "[bold red]OFF[/bold red]"
-                console.print(f"📊 [bold]Metrics Toolbar:[/bold] {status_str}")
-                continue
-            elif cmd == "/models":
-                show_ollama_models()
-                continue
-            elif cmd == "/pull":
-                if len(parts) < 2:
-                    console.print("[bold red]❌ Usage: /pull <model_name>[/]")
-                else:
-                    pull_ollama_model(parts[1])
-                continue
-            elif cmd == "/debug":
-                DEBUG_MODE = not DEBUG_MODE
-                status_str = "[bold green]ON[/bold green]" if DEBUG_MODE else "[bold red]OFF[/bold red]"
-                console.print(f"⚙️  [bold]Debug Mode (Verbose Agent Thoughts):[/bold] {status_str}")
-                continue
-            elif cmd in ["/teach", "/feedback"]:
-                execute_teach_feedback()
-                continue
-            elif cmd == "/trust":
-                active_model = get_active_model_name()
-                new_thresh = hrf_manager.trust(active_model)
-                console.print(f"[bold green]✅ Trust Increased for {active_model}. HRF threshold is now {new_thresh:.2f}[/]")
-                continue
-            elif cmd == "/doubt":
-                active_model = get_active_model_name()
-                new_thresh = hrf_manager.doubt(active_model)
-                console.print(f"[bold yellow]⚠️ Trust Decreased for {active_model}. HRF threshold is now {new_thresh:.2f}[/]")
-                continue
-            elif cmd == "/bs":
-                weight = 3.0
-                if len(parts) > 1:
-                    try:
-                        weight = float(parts[1])
-                    except ValueError:
-                        pass
-                active_model = get_active_model_name()
-                new_thresh = hrf_manager.bs(active_model, weight)
-                console.print(f"[bold red]🚨 Bullshit Penalty Applied (-{weight}) to {active_model}![/bold red]")
-                console.print(f"HRF threshold plummeted to {new_thresh:.2f}")
-                if new_thresh <= 1.0:
-                    console.print("\n[bold red]⚠️ ZERO TRUST MODE INITIATED ⚠️[/bold red]")
-                    console.print("The local model has lost all trust. All future queries will be locked down and routed to the External Oracle.")
-                    console.print("Type [bold cyan]/forgive[/bold cyan] to reset trust back to baseline.")
-                continue
-            elif cmd in ["/forgive", "/reset"]:
-                active_model = get_active_model_name()
-                new_thresh = hrf_manager.reset(active_model)
-                console.print(f"[bold green]🕊️ Trust Forgiven. The local model {active_model} has been granted a clean slate.[/bold green]")
-                console.print(f"HRF threshold restored to baseline: {new_thresh:.2f}")
-                continue
-            elif cmd == "/hrf":
-                active_model = get_active_model_name()
-                thresh = hrf_manager.get_threshold(active_model)
-                base = hrf_manager.get_baseline(active_model)
-                console.print(Panel(
-                    f"Active Model: [bold cyan]{active_model}[/bold cyan]\n"
-                    f"Current Threshold: [bold magenta]{thresh:.2f}[/bold magenta]\n"
-                    f"Baseline: [dim]{base:.2f}[/dim]\n\n"
-                    f"If a prompt's risk score exceeds this threshold, the query defaults to the Oracle.\n"
-                    f"Use [bold cyan]/trust[/] to raise the threshold, [bold yellow]/doubt[/] to lower it, and [bold red]/bs[/] to penalize it heavily.",
-                    title="Hallucination Risk Factor (HRF) Status", border_style="blue"
-                ))
-                continue
-            elif cmd == "/expand":
-                execute_expand_pager()
-                continue
-            elif cmd in ["/help", "/commands"]:
-                console.print(Panel(
-                    "[bold yellow]Core & Display[/bold yellow]\n"
-                    "  [bold cyan]/expand[/]          View the last truncated output in a full-screen pager\n"
-                    "  [bold cyan]/metrics[/]         Toggle the live bottom toolbar for performance metrics\n"
-                    "  [bold cyan]/debug[/]           Toggle verbose agent thoughts & details\n"
-                    "  [bold cyan]/quit[/]            Terminate the CLI session\n\n"
-                    "[bold yellow]Learning & Trust (HRF)[/bold yellow]\n"
-                    "  [bold cyan]/teach[/]           Flag the last response as incomplete & teach the agent\n"
-                    "  [bold cyan]/hrf[/]             Show current Hallucination Risk Factor settings\n"
-                    "  [bold cyan]/trust[/]           Trust the active model more (raises Oracle threshold)\n"
-                    "  [bold cyan]/doubt[/]           Trust the active model less (lowers Oracle threshold)\n"
-                    "  [bold cyan]/bs [weight][/]    Apply a massive hallucination penalty to drop trust instantly\n"
-                    "  [bold cyan]/forgive[/]         Reset trust completely back to its clean-slate baseline\n\n"
-                    "[bold yellow]Model Management[/bold yellow]\n"
-                    "  [bold cyan]/models[/]          Show downloaded & loaded Ollama models\n"
-                    "  [bold cyan]/pull <name>[/]     Download a new model from the Ollama library",
-                    title="Help & Commands", border_style="blue"
-                ))
-                continue
-            else:
-                console.print(f"[bold red]❌ Unknown command: {cmd}. Type /help to list commands.[/]")
-                continue
+            handle_slash_command(cmd, parts, console, session, this_module)
+            continue
 
         # 1. Scrutinize prompt for missing context
         with console.status("[bold yellow]🤔 [Router] Scrutinizing prompt context...[/]"):

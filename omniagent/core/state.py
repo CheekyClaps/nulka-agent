@@ -1,4 +1,5 @@
 import sys
+import os
 
 class SessionState:
     """Manages global application state cleanly without using Python globals."""
@@ -7,7 +8,9 @@ class SessionState:
         self.last_route: str | None = None
         self.last_full_output: str | None = None
         self.last_execution_time: float = 0.0
-        self.show_metrics: bool = False
+        self.show_metrics: bool = True
+        self.active_workspace_dirs: list[str] = [os.path.abspath(os.getcwd())]
+        self.vim_mode: bool = False
 
 # Singleton instance to be shared across the application run
 state = SessionState()
