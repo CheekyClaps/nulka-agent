@@ -6,8 +6,8 @@ from omniagent.hrf_manager import hrf_manager
 
 # Inline implementation to avoid circular dependencies
 def get_active_model_name() -> str:
-    from omniagent.utils import get_best_available_model
-    return get_best_available_model()
+    from omniagent.utils import local_model_name
+    return local_model_name
 
 class StatusBar:
     @staticmethod

@@ -147,6 +147,14 @@ def handle_slash_command(cmd: str, parts: list[str], console, session, cli_modul
         return True
         
     # 7. HRF & Trust Commands
+    elif cmd == "/oracle":
+        if len(parts) < 2:
+            console.print("[bold red]❌ Usage: /oracle <your query>[/]")
+            return True
+        query = " ".join(parts[1:])
+        # Direct bypass to Oracle
+        cli_module.execute_crew_workflow("ORACLE", query)
+        return True
     elif cmd in ["/teach", "/feedback"]:
         cli_module.execute_teach_feedback()
         return True
@@ -218,6 +226,7 @@ def print_help(console):
         "  [bold cyan]/copy[/]               Copy the last raw output to your clipboard\n"
         "  [bold cyan]/tools[/]              List available capabilities\n"
         "  [bold cyan]/agents[/]             List available specialized AI departments\n"
+        "  [bold cyan]/oracle <query>[/]     Directly query the External Universal Oracle\n"
         "  [bold cyan]/metrics[/]            Toggle the live bottom toolbar for performance metrics\n"
         "  [bold cyan]/debug[/]              Toggle verbose agent thoughts & details\n\n"
         "[bold yellow]Workspace & Directory Management[/bold yellow]\n"

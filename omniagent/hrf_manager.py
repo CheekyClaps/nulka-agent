@@ -1,7 +1,7 @@
 import os
 import json
 
-HRF_CONFIG_PATH = os.path.expanduser("~/.omniagent_hrf.json")
+HRF_CONFIG_PATH = os.path.expanduser("~/.oac_hrf.json")
 DEFAULT_BASELINE = 7.0
 STABILIZATION_RATE = 0.10 # Moves 10% towards baseline per step
 

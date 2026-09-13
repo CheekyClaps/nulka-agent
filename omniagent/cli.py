@@ -14,7 +14,7 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 logging.getLogger("opentelemetry.trace").setLevel(logging.ERROR)
 logging.getLogger("opentelemetry.sdk.trace").setLevel(logging.ERROR)
 
-CONFIG_PATH = os.path.expanduser("~/.omniagent_env")
+CONFIG_PATH = os.path.expanduser("~/.oac_env")
 # Load environment variables on startup
 load_dotenv(CONFIG_PATH)
 
@@ -147,6 +147,10 @@ def lexical_routing(prompt: str) -> str:
     # Coding
     if any(k in p for k in ["code", "write python", "implement", "fix", "refactor", "bug", "develop"]):
         return "CODE"
+        
+    # Oracle Fallback Bypass
+    if any(k in p for k in ["oracle", "ask the oracle"]):
+        return "ORACLE"
         
     return None
 
