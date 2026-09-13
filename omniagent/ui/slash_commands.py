@@ -104,6 +104,40 @@ def handle_slash_command(cmd: str, parts: list[str], console, session, cli_modul
     elif cmd == "/pwd":
         console.print(f"📂 [bold]Current Working Directory:[/bold] [cyan]{os.getcwd()}[/cyan]")
         return True
+    elif cmd in ["/ls", "/list"]:
+        target_dir = os.path.expanduser(" ".join(parts[1:]) if len(parts) > 1 else ".")
+        target_dir = os.path.abspath(target_dir)
+        if not os.path.exists(target_dir):
+            console.print(f"[bold red]❌ Path does not exist: {target_dir}[/bold red]")
+            return True
+        if not os.path.isdir(target_dir):
+            console.print(f"[bold red]❌ Path is not a directory: {target_dir}[/bold red]")
+            return True
+        try:
+            items = sorted(os.listdir(target_dir))
+            if not items:
+                console.print("[dim]Directory is empty.[/dim]")
+                return True
+            
+            # Format nicely: Directories first, then files
+            dirs = []
+            files = []
+            for item in items:
+                # Ignore hidden files by default unless asked, or just show them
+                full_path = os.path.join(target_dir, item)
+                if os.path.isdir(full_path):
+                    dirs.append(item)
+                else:
+                    files.append(item)
+            
+            console.print(f"📂 [bold]Listing directory:[/bold] [cyan]{target_dir}[/cyan]")
+            for d in dirs:
+                console.print(f"  [bold blue]📁 {d}/[/bold blue]")
+            for f in files:
+                console.print(f"  📄 {f}")
+        except Exception as e:
+            console.print(f"[bold red]❌ Failed to list directory: {e}[/bold red]")
+        return True
     elif cmd in ["/dir", "/directory", "/workspace"]:
         subcmd = parts[1].lower() if len(parts) > 1 else "show"
         if subcmd == "show":
@@ -232,6 +266,7 @@ def print_help(console):
         "[bold yellow]Workspace & Directory Management[/bold yellow]\n"
         "  [bold cyan]/cd [path][/]          Change current working directory\n"
         "  [bold cyan]/pwd[/]                Show current working directory path\n"
+        "  [bold cyan]/ls [path][/]           List contents of a directory (defaults to current)\n"
         "  [bold cyan]/workspace [cmd][/]    Manage active directories (subcmds: show, add, set)\n\n"
         "[bold yellow]Learning & Trust (HRF)[/bold yellow]\n"
         "  [bold cyan]/teach[/]              Flag the last response as incomplete & teach the agent\n"
