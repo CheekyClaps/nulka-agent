@@ -9,10 +9,7 @@ from omniagent.tools.oracle_cli_tool import OracleCLITool
 from omniagent.tools.interactive_teacher_tool import InteractiveTeacherTool
 from omniagent.tools.consult_oracle_tool import ConsultOracleTool
 
-# Setup standard local LLM
-# Allow user to override the default model via ~/.oac_env (e.g. LOCAL_MODEL="llama3.1")
-local_model_name = os.getenv("LOCAL_MODEL", "unknown")
-ollama_llm = Ollama(model=local_model_name, base_url="http://localhost:11434")
+# (Moved logic to bottom of file)
 
 def get_system_context():
     """Gathers real-time environmental context metrics for the Router agent."""
@@ -207,4 +204,31 @@ def get_loaded_models():
     except Exception:
         pass
     return []
+
+# Setup standard local LLM
+# Allow user to override the default model via ~/.oac_env (e.g. LOCAL_MODEL="llama3.1")
+def get_best_available_model() -> str:
+    """Intelligently determines the best model to use at startup."""
+    # 1. Check if user explicitly set an environment variable
+    env_model = os.getenv("LOCAL_MODEL")
+    if env_model and env_model != "unknown":
+        return env_model
+        
+    # 2. Check what is currently loaded in memory
+    loaded = get_loaded_models()
+    if loaded:
+        return loaded[0]
+        
+    # 3. Check what is downloaded/available locally
+    local = get_local_models()
+    if local:
+        return local[0]
+        
+    # 4. Total fallback (will likely cause a 404 if not pulled, but avoids crashing on boot)
+    return "unknown"
+
+# Initialize with the best guess at boot. 
+# We update it dynamically before critical calls if needed.
+local_model_name = get_best_available_model()
+ollama_llm = Ollama(model=local_model_name, base_url="http://localhost:11434")
 
