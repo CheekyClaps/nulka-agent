@@ -2,8 +2,15 @@ import os
 from prompt_toolkit.formatted_text import HTML
 
 from omniagent.core.state import state
-from omniagent.utils import get_active_model_name
 from omniagent.hrf_manager import hrf_manager
+
+# Inline implementation to avoid circular dependencies
+def get_active_model_name() -> str:
+    from omniagent.utils import get_loaded_models
+    loaded = get_loaded_models()
+    if loaded:
+        return loaded[0]
+    return "qwen2.5-coder:latest"
 
 class StatusBar:
     @staticmethod

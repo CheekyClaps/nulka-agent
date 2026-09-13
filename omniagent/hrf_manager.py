@@ -92,3 +92,6 @@ class HRFManager:
         self.state["models"][model_name]["current_threshold"] = round(new_val, 2)
         self._save_state()
         return new_val
+
+# Global singleton instance
+hrf_manager = HRFManager()

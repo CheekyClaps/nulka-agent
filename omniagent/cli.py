@@ -205,10 +205,7 @@ def calculate_hallucination_risk(prompt: str) -> int:
         
     return min(score, 10)
 
-from omniagent.hrf_manager import HRFManager
-
-# Initialize the global HRF Manager
-hrf_manager = HRFManager()
+from omniagent.hrf_manager import hrf_manager
 
 def get_active_model_name() -> str:
     """Helper to fetch the primary loaded model."""

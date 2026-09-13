@@ -2,13 +2,16 @@ import os
 import sys
 
 from omniagent.core.state import state
-from omniagent.utils import (
-    get_active_model_name,
-    show_ollama_models,
-    pull_ollama_model,
-    get_system_context
-)
+from omniagent.utils import get_system_context
 from omniagent.hrf_manager import hrf_manager
+
+# Inline implementation to avoid circular dependencies
+def get_active_model_name() -> str:
+    from omniagent.utils import get_loaded_models
+    loaded = get_loaded_models()
+    if loaded:
+        return loaded[0]
+    return "qwen2.5-coder:latest"
 
 # Note: console, execute_teach_feedback, execute_expand_pager are imported/passed where needed
 # to avoid massive circular imports, we will keep the heavy lifting in cli.py or pass callables.
@@ -137,13 +140,13 @@ def handle_slash_command(cmd: str, parts: list[str], console, session, cli_modul
 
     # 6. Model Management
     elif cmd == "/models":
-        show_ollama_models()
+        cli_module.show_ollama_models()
         return True
     elif cmd == "/pull":
         if len(parts) < 2:
             console.print("[bold red]❌ Usage: /pull <model_name>[/]")
         else:
-            pull_ollama_model(parts[1])
+            cli_module.pull_ollama_model(parts[1])
         return True
         
     # 7. HRF & Trust Commands
