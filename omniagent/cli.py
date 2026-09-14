@@ -165,6 +165,15 @@ def lexical_routing(prompt: str) -> str:
 
 def semantic_routing(prompt: str) -> str:
     """Uses LLM-based Intent Classification (LiteLLM fallback Classifier)."""
+    
+    history_context = ""
+    if state.history:
+        recent = state.history[-2:]
+        history_context = "\n--- Recent Conversation History ---\n"
+        for h in recent:
+            history_context += f"User: {h.get('prompt')}\nAgent: {h.get('output')}\n"
+        history_context += "-----------------------------------\n\n"
+
     system_prompt = (
         "You are the Company Dispatcher & Semantic Router.\n"
         "Your task is to classify the user's intent into ONE of the following categories:\n"
@@ -175,8 +184,9 @@ def semantic_routing(prompt: str) -> str:
         "- 'PENTEST': Wants offensive audits, vulnerability scans, exploit PoCs, or security penetration.\n"
         "- 'SECURITY': Wants secure coding standards, cryptography reviews, regulatory audits, or secret detection.\n"
         "- 'NETWORK': Wants port mapping, firewall rule changes, proxy configs, or domain configuration.\n"
-        "- 'GENERAL': General tech explanations, chatting, finding/locating files on disk, answering 'what', 'where', or 'how' questions without modifying code.\n\n"
-        "CRITICAL RULE: If the prompt is asking to find a file, read a file, or is a conversational inquiry, ALWAYS classify as GENERAL.\n\n"
+        "- 'GENERAL': General tech explanations, chatting, finding/locating files on disk, internet web searching, answering 'what', 'where', or 'how' questions without modifying code.\n\n"
+        "CRITICAL RULE: If the prompt is asking to find a file, read a file, search the web, or is a conversational inquiry, ALWAYS classify as GENERAL.\n\n"
+        f"{history_context}"
         "Reply with ONLY the matching category name in capital letters (PLAN, ARCHITECT, CODE, TEST, PENTEST, SECURITY, NETWORK, or GENERAL).\n\n"
         f"Prompt: {prompt}"
     )
@@ -307,6 +317,18 @@ def route_request(prompt: str) -> str:
 def execute_crew_workflow(route: str, prompt: str):
     """Dynamically assembles and kicks off the perfect Crew of agents based on the route."""
     context = get_system_context()
+    
+    # Inject conversational history into the prompt for the agents
+    history_context = ""
+    if state.history:
+        recent = state.history[-2:]
+        history_context = "\n--- Recent Conversation History ---\n"
+        for h in recent:
+            history_context += f"User: {h.get('prompt')}\nAgent: {h.get('output')}\n"
+        history_context += "-----------------------------------\n\n"
+        
+    full_prompt_with_history = f"{history_context}Current Request: '{prompt}'"
+    
     inputs = {
         "user_prompt": prompt,
         "current_time": context["current_time"],
@@ -320,7 +342,7 @@ def execute_crew_workflow(route: str, prompt: str):
         tasks = [
             Task(
                 description=(
-                    f"The user asked a high-risk query: '{prompt}'.\n"
+                    f"The user asked a high-risk query: {full_prompt_with_history}\n"
                     f"1. You MUST use the 'oracle_cli_tool' exactly once to execute this exact query: '{prompt}'.\n"
                     f"2. You MUST NOT modify or summarize the response.\n"
                     f"3. Return the EXACT string returned by the oracle_cli_tool as your final answer."
@@ -335,7 +357,7 @@ def execute_crew_workflow(route: str, prompt: str):
     elif route == "PLAN":
         tasks = [
             Task(
-                description=f"Analyze the requirement: '{prompt}'. Design a high-level roadmap and checklist. Store rules or steps.",
+                description=f"Analyze the requirement: {full_prompt_with_history}. Design a high-level roadmap and checklist. Store rules or steps.",
                 expected_output="A clean, comprehensive Markdown-formatted product plan with checklists.",
                 agent=agents["planner"]
             )
@@ -346,7 +368,7 @@ def execute_crew_workflow(route: str, prompt: str):
     elif route == "ARCHITECT":
         tasks = [
             Task(
-                description=f"Analyze structural constraints for: '{prompt}'. Produce systems architecture designs, UML schemas, or file trees.",
+                description=f"Analyze structural constraints for: {full_prompt_with_history}. Produce systems architecture designs, UML schemas, or file trees.",
                 expected_output="An architectural specification document outlining modular boundaries and design patterns.",
                 agent=agents["systems_engineer"]
             )
@@ -357,7 +379,7 @@ def execute_crew_workflow(route: str, prompt: str):
     elif route == "CODE":
         # Multi-agent software dev squad: Dev -> QA -> Security Audit
         coding_task = Task(
-            description=f"Implement functional code for requirement: '{prompt}'. Write cleanly commented code into workspace files.",
+            description=f"Implement functional code for requirement: {full_prompt_with_history}. Write cleanly commented code into workspace files.",
             expected_output="Functional code files created in the workspace.",
             agent=agents["developer"]
         )
@@ -378,7 +400,7 @@ def execute_crew_workflow(route: str, prompt: str):
     elif route == "TEST":
         tasks = [
             Task(
-                description=f"Analyze the workspace and write or execute test suites verifying target files for: '{prompt}'. Ensure test-driven standards.",
+                description=f"Analyze the workspace and write or execute test suites verifying target files for: {full_prompt_with_history}. Ensure test-driven standards.",
                 expected_output="An operational test suite and a test execution summary report.",
                 agent=agents["tester"]
             )
@@ -389,7 +411,7 @@ def execute_crew_workflow(route: str, prompt: str):
     elif route == "PENTEST":
         tasks = [
             Task(
-                description=f"Perform offensive security scanning or binary analysis matching user scope: '{prompt}'. Attempt safe exploits.",
+                description=f"Perform offensive security scanning or binary analysis matching user scope: {full_prompt_with_history}. Attempt safe exploits.",
                 expected_output="A vulnerability report with severity ratings, threat models, and proof of concept runs.",
                 agent=agents["pentester"]
             )
@@ -400,7 +422,7 @@ def execute_crew_workflow(route: str, prompt: str):
     elif route == "SECURITY":
         tasks = [
             Task(
-                description=f"Examine codebases or environments matching: '{prompt}' for security posture, compliance, encryption, and secure storage.",
+                description=f"Examine codebases or environments matching: {full_prompt_with_history} for security posture, compliance, encryption, and secure storage.",
                 expected_output="A comprehensive CISO audit report highlighting defensive strengths, secret detections, and compliance metrics.",
                 agent=agents["security_officer"]
             )
@@ -411,7 +433,7 @@ def execute_crew_workflow(route: str, prompt: str):
     elif route == "NETWORK":
         tasks = [
             Task(
-                description=f"Analyze and design topologies, proxies, firewalls, or docker networking configurations matching: '{prompt}'.",
+                description=f"Analyze and design topologies, proxies, firewalls, or docker networking configurations matching: {full_prompt_with_history}.",
                 expected_output="A validated networking design configuration, docker composition, or firewall script blueprint.",
                 agent=agents["network_engineer"]
             )
@@ -423,7 +445,7 @@ def execute_crew_workflow(route: str, prompt: str):
         # General Assistant route
         tasks = [
             Task(
-                description=f"Respond helpfully, clearly, and contextualized to: '{prompt}'. Feel free to consult workspace files to make your answer highly precise.",
+                description=f"Respond helpfully, clearly, and contextualized to: {full_prompt_with_history}. Feel free to consult workspace files or search the web to make your answer highly precise.",
                 expected_output="A helpful, professional response addressing the query fully.",
                 agent=agents["assistant"]
             )

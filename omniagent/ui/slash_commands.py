@@ -258,7 +258,7 @@ def handle_slash_command(cmd: str, parts: list[str], console, session, cli_modul
 
     else:
         console.print(f"[bold red]❌ Unknown command: {cmd}. Type /help to list commands.[/]")
-        return True
+        return False
 
 
 def print_help(console):

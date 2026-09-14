@@ -27,7 +27,7 @@ setup(
         "pyyaml",
         "python-dotenv",
         "requests",
-        "duckduckgo-search",
+        "ddgs",
         "beautifulsoup4"
     ],
     entry_points={
