@@ -755,9 +755,9 @@ def run_interactive_cli():
         """Enter key validates and submits the prompt instead of inserting newline."""
         event.current_buffer.validate_and_handle()
 
-    @kb.add('s-enter')
+    @kb.add('escape', 'enter')
     def _(event):
-        """Shift+Enter inserts a literal newline in the prompt."""
+        """Alt+Enter (Escape then Enter) inserts a literal newline in the prompt."""
         event.current_buffer.insert_text('\n')
 
     session = PromptSession(history=FileHistory(history_file), key_bindings=kb)
