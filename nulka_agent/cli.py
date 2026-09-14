@@ -731,7 +731,7 @@ def run_interactive_cli():
     welcome_text.append("Available Agents: ", style="dim")
     welcome_text.append("Router, Planner, Architect, Developer, Tester, Pentester, Security, Network\n", style="bold magenta")
     welcome_text.append("Special Tooling: ", style="dim")
-    welcome_text.append("Gemini CLI Tool Integrated\n", style="bold blue")
+    welcome_text.append("Native Workspace & Web Tools\n", style="bold blue")
     welcome_text.append("Interactive Help: ", style="dim")
     welcome_text.append("Type /models to view models or /help to view command list\n", style="bold green")
     welcome_text.append("Type '/quit', 'exit', or 'quit' to terminate.\n", style="italic")
