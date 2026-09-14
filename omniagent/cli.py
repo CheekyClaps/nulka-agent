@@ -131,41 +131,11 @@ def format_condensed_output(text: str, max_lines: int = 40) -> str:
     divider = f"\n\n[dim cyan]... [ {hidden} Lines Condensed. Type /expand to view full output ] ...[/dim cyan]\n\n"
     return first_part + divider + last_part
 
-def lexical_routing(prompt: str) -> str:
-    """Performs fast lexical keyword matching (LiteLLM principle)."""
-    p = prompt.lower()
-    
-    # Offensive Security
-    if any(k in p for k in ["pentest", "exploit", "penetration", "hack", "vulnerability", "vulnerable", "attacker"]):
-        return "PENTEST"
-    # Defensive Security
-    if any(k in p for k in ["security", "audit", "compliance", "encryption", "cipher", "secret", "owasp"]):
-        return "SECURITY"
-    # Networking
-    if any(k in p for k in ["network", "dns", "firewall", "iptables", "port", "ip address", "nginx", "proxy", "subnet"]):
-        return "NETWORK"
-    # Systems Architecture
-    if any(k in p for k in ["architect", "design", "structural", "uml", "diagram", "pattern", "clean architecture"]):
-        return "ARCHITECT"
-    # Testing & QA
-    if any(k in p for k in ["test", "pytest", "unit test", "validation", "qa", "verify"]):
-        return "TEST"
-    # Planning
-    if any(k in p for k in ["plan", "roadmap", "epic", "sprint", "milestone", "scrum", "agile"]):
-        return "PLAN"
-    # Coding
-    if any(k in p for k in ["code", "write python", "implement", "fix", "refactor", "bug", "develop"]):
-        return "CODE"
-        
-    # Oracle Fallback Bypass
-    if any(k in p for k in ["oracle", "ask the oracle"]):
-        return "ORACLE"
-        
-    return None
-
-def semantic_routing(prompt: str) -> str:
-    """Uses LLM-based Intent Classification (LiteLLM fallback Classifier)."""
-    
+def analyze_prompt_intent(prompt: str) -> dict:
+    """
+    Uses the General Assistant LLM to evaluate the prompt for BOTH missing context (scrutiny) 
+    and task categorization (routing) in a single, intelligent step.
+    """
     history_context = ""
     if state.history:
         recent = state.history[-2:]
@@ -175,30 +145,52 @@ def semantic_routing(prompt: str) -> str:
         history_context += "-----------------------------------\n\n"
 
     system_prompt = (
-        "You are the Company Dispatcher & Semantic Router.\n"
-        "Your task is to classify the user's intent into ONE of the following categories:\n"
-        "- 'PLAN': Wants requirements analysis, roadmaps, task breakdowns, or sprint setups.\n"
-        "- 'ARCHITECT': Wants system architecture, framework evaluations, clean code design patterns, or diagrams.\n"
-        "- 'CODE': Explicit requests to WRITE, MODIFY, or REFACTOR code files. DO NOT use this for simply locating or finding files.\n"
-        "- 'TEST': Wants unit tests, functional verification suites, linter runs, or test execution.\n"
-        "- 'PENTEST': Wants offensive audits, vulnerability scans, exploit PoCs, or security penetration.\n"
-        "- 'SECURITY': Wants secure coding standards, cryptography reviews, regulatory audits, or secret detection.\n"
-        "- 'NETWORK': Wants port mapping, firewall rule changes, proxy configs, or domain configuration.\n"
-        "- 'GENERAL': General tech explanations, chatting, finding/locating files on disk, internet web searching, answering 'what', 'where', or 'how' questions without modifying code.\n\n"
-        "CRITICAL RULE: If the prompt is asking to find a file, read a file, search the web, or is a conversational inquiry, ALWAYS classify as GENERAL.\n\n"
+        "You are the OmniAgent Lead Coordinator.\n"
+        "Your job is to read the user's prompt (and history) and perform two tasks:\n\n"
+        "TASK 1 - SCRUTINY:\n"
+        "Determine if the prompt is missing critical context (e.g., they ask to edit a file but don't name the file). "
+        "If it is impossible to proceed, write a clarification question. If you CAN proceed (or if it's a general question), output 'PROCEED'.\n\n"
+        "TASK 2 - ROUTING:\n"
+        "Assign the request to EXACTLY ONE of these specialized departments:\n"
+        "- PLAN: Roadmaps, task breakdowns, sprint setups.\n"
+        "- ARCHITECT: System design, diagrams, framework choice.\n"
+        "- CODE: Explicitly writing, modifying, or refactoring codebase files.\n"
+        "- TEST: Writing or executing test suites (pytest, etc).\n"
+        "- PENTEST: Offensive security, exploit PoCs.\n"
+        "- SECURITY: Defensive audits, compliance, secrets scanning.\n"
+        "- NETWORK: Firewalls, proxies, domain configs.\n"
+        "- GENERAL: General chats, answering questions, internet searching, or finding/reading files.\n\n"
+        "CRITICAL RULE: If the user is just asking a question, searching the internet, or reading a file, ALWAYS route to GENERAL.\n\n"
+        "OUTPUT FORMAT (You must output exactly these two lines):\n"
+        "SCRUTINY: [Your question or PROCEED]\n"
+        "ROUTE: [Category Name]\n\n"
         f"{history_context}"
-        "Reply with ONLY the matching category name in capital letters (PLAN, ARCHITECT, CODE, TEST, PENTEST, SECURITY, NETWORK, or GENERAL).\n\n"
         f"Prompt: {prompt}"
     )
+    
+    result = {
+        "scrutiny": "PROCEED",
+        "route": "GENERAL"
+    }
+    
     try:
-        response = ollama_llm.invoke(system_prompt).strip().upper()
-        # Find exact matches in response
-        for cat in ["PLAN", "ARCHITECT", "CODE", "TEST", "PENTEST", "SECURITY", "NETWORK", "GENERAL"]:
-            if cat in response:
-                return cat
+        response = ollama_llm.invoke(system_prompt).strip()
+        lines = response.split('\n')
+        for line in lines:
+            line = line.strip()
+            if line.upper().startswith("SCRUTINY:"):
+                val = line[len("SCRUTINY:"):].strip()
+                result["scrutiny"] = val if val else "PROCEED"
+            elif line.upper().startswith("ROUTE:"):
+                val = line[len("ROUTE:"):].strip().upper()
+                for cat in ["PLAN", "ARCHITECT", "CODE", "TEST", "PENTEST", "SECURITY", "NETWORK", "GENERAL", "ORACLE"]:
+                    if cat in val:
+                        result["route"] = cat
+                        break
+        return result
     except Exception as e:
-        console.print(f"[bold red]Router Error during semantic classification: {e}[/]")
-    return "GENERAL"
+        console.print(f"[bold red]Router Error during analysis: {e}[/]")
+        return result
 
 def calculate_hallucination_risk(prompt: str) -> int:
     """Evaluates the prompt against common local LLM hallucination pitfalls."""
@@ -235,33 +227,8 @@ def get_active_model_name() -> str:
     from omniagent.utils import get_best_available_model
     return get_best_available_model()
 
-def scrutinize_prompt(prompt: str) -> str:
-    """Uses LLM to evaluate if a prompt has enough context to be executed."""
-    system_prompt = (
-        "You are the OmniAgent Requirements Scrutinizer. Analyze the user's prompt.\n"
-        "Determine if the prompt is missing critical, structural context required to execute (such as a missing filename for file-reading, missing code file for testing, or missing location for geo-spatial queries).\n\n"
-        "CRITICAL RULES:\n"
-        "1. If the prompt is a general question, conversational query, recipe, creative writing, general code creation from scratch, or can be answered using reasonable default choices, you MUST reply with ONLY the word: PROCEED\n"
-        "2. Only ask for clarification if it is logically impossible to proceed without specific files, directories, or exact variables that are absent.\n"
-        "3. Your response must be EXACTLY 'PROCEED' (one word) if you can proceed. Otherwise, reply ONLY with a single direct question asking for the missing specific file/context.\n\n"
-        f"User Prompt: {prompt}"
-    )
-    try:
-        response = ollama_llm.invoke(system_prompt).strip()
-        # Clean up possible conversational prefixes or thought blocks from LLM
-        cleaned_response = response.strip()
-        if "PROCEED" in cleaned_response.upper():
-            return "PROCEED"
-        # If the response doesn't even contain a question mark, it's highly likely to be a statement/rambling, so proceed.
-        if "?" not in cleaned_response:
-            return "PROCEED"
-        return cleaned_response
-    except Exception as e:
-        console.print(f"[bold red]Router Error during scrutiny: {e}[/]")
-        return "PROCEED"
-
-def route_request(prompt: str) -> str:
-    """Integrates LiteLLM Lexical-Semantic routing logic and dynamic HRF evaluation."""
+def route_request(prompt: str, predefined_route: str = None) -> str:
+    """Integrates dynamic HRF evaluation and routes the request."""
 
     # 0. Evaluate Hallucination Risk Factor (HRF)
     hrf_score = calculate_hallucination_risk(prompt)
@@ -285,7 +252,6 @@ def route_request(prompt: str) -> str:
                     idx = int(choice)
                     if 0 <= idx < len(available_models):
                         new_model = available_models[idx]
-                        # Save new active model to .oac_env config
                         import os
                         from dotenv import set_key
                         CONFIG_PATH = os.path.expanduser("~/.oac_env")
@@ -302,17 +268,7 @@ def route_request(prompt: str) -> str:
         console.print(f"[bold yellow]⚠️ High Hallucination Risk Factor Detected ({hrf_score} >= threshold {dynamic_threshold:.1f}). Defaulting to Universal Oracle...[/]")
         return "ORACLE"
         
-    # 1. Lexical fast-path
-    lexical_route = lexical_routing(prompt)
-    if lexical_route:
-        console.print(f"[bold cyan]🔍 [Lexical Router] Match found: {lexical_route}[/]")
-        return lexical_route
-        
-    # 2. Semantic LLM-path fallback
-    with console.status("[bold yellow]🧠 [Semantic Router] Classifying intent via local LLM...[/]"):
-        semantic_route = semantic_routing(prompt)
-    console.print(f"[bold cyan]🔍 [Semantic Router] Classified as: {semantic_route}[/]")
-    return semantic_route
+    return predefined_route if predefined_route else "GENERAL"
 
 def execute_crew_workflow(route: str, prompt: str):
     """Dynamically assembles and kicks off the perfect Crew of agents based on the route."""
@@ -816,12 +772,15 @@ def run_interactive_cli():
             handle_slash_command(cmd, parts, console, session, this_module)
             continue
 
-        # 1. Scrutinize prompt for missing context
-        with console.status("[bold yellow]🤔 [Router] Scrutinizing prompt context...[/]"):
-            scrutiny_result = scrutinize_prompt(user_input)
+        # 1. Analyze Intent (Scrutiny + Routing in one pass)
+        with console.status("[bold yellow]🤔 [Lead Coordinator] Analyzing intent & context...[/]"):
+            analysis = analyze_prompt_intent(user_input)
+            
+        scrutiny_result = analysis.get("scrutiny", "PROCEED")
+        proposed_route = analysis.get("route", "GENERAL")
             
         if scrutiny_result != "PROCEED":
-            console.print(f"[bold yellow]🤔 [Router Scrutiny]:[/] {scrutiny_result}")
+            console.print(f"[bold yellow]🤔 [Coordinator Question]:[/] {scrutiny_result}")
             try:
                 style = Style.from_dict({'prompt': 'ansicyan bold'})
                 clarification = session.prompt("Provide clarification ❯ ", style=style).strip()
@@ -833,10 +792,12 @@ def run_interactive_cli():
                 console.print("\n[bold red]Cancelled prompt.[/bold red]")
                 continue
 
-        # 2. Route the request
-        route = route_request(user_input)
+        # 2. Finalize Route (Apply HRF Checks)
+        route = route_request(user_input, predefined_route=proposed_route)
         if route == "SWAP_RESTART":
             break
+            
+        console.print(f"[bold cyan]🔍 [Coordinator] Dispatching to: {route}[/]")
         
         # 3. Execute workflow
         try:
