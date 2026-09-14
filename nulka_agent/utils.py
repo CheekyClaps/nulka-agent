@@ -5,17 +5,17 @@ import platform
 from datetime import datetime
 from crewai import Agent
 from langchain_community.llms import Ollama
-from omniagent.tools.oracle_cli_tool import OracleCLITool
-from omniagent.tools.interactive_teacher_tool import InteractiveTeacherTool
-from omniagent.tools.consult_oracle_tool import ConsultOracleTool
-from omniagent.tools.web_search_tool import WebSearchTool
-from omniagent.tools.web_fetch_tool import WebFetchTool
-from omniagent.tools.fs_tools import (
+from nulka_agent.tools.oracle_cli_tool import OracleCLITool
+from nulka_agent.tools.interactive_teacher_tool import InteractiveTeacherTool
+from nulka_agent.tools.consult_oracle_tool import ConsultOracleTool
+from nulka_agent.tools.web_search_tool import WebSearchTool
+from nulka_agent.tools.web_fetch_tool import WebFetchTool
+from nulka_agent.tools.fs_tools import (
     ReadFileTool, WriteFileTool, ReplaceTextTool, 
     ListDirectoryTool, GlobSearchTool, GrepSearchTool
 )
-from omniagent.tools.shell_tool import RunShellCommandTool
-from omniagent.tools.ui_tools import AskUserTool, UpdateTopicTool
+from nulka_agent.tools.shell_tool import RunShellCommandTool
+from nulka_agent.tools.ui_tools import AskUserTool, UpdateTopicTool
 
 # (Moved logic to bottom of file)
 
@@ -62,7 +62,7 @@ def load_agent_configs(agents_yaml_path="config/agents.yaml"):
     
     # Load Universal Ground Rules if they exist
     ground_rules = ""
-    rules_path = os.path.expanduser("~/.omniagent_rules.md")
+    rules_path = os.path.expanduser("~/.nulka_agent_rules.md")
     if os.path.exists(rules_path):
         try:
             with open(rules_path, "r") as f:

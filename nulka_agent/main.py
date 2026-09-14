@@ -4,7 +4,7 @@ import warnings
 # Suppress Pydantic v1/v2 mixing warnings from older crewai/langchain versions
 warnings.filterwarnings("ignore", category=UserWarning, module="pydantic")
 
-from omniagent.cli import run_interactive_cli
+from nulka_agent.cli import run_interactive_cli
 
 if __name__ == "__main__":
     try:

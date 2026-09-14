@@ -1,12 +1,12 @@
 import os
 from prompt_toolkit.formatted_text import HTML
 
-from omniagent.core.state import state
-from omniagent.hrf_manager import hrf_manager
+from nulka_agent.core.state import state
+from nulka_agent.hrf_manager import hrf_manager
 
 # Inline implementation to avoid circular dependencies
 def get_active_model_name() -> str:
-    from omniagent.utils import local_model_name
+    from nulka_agent.utils import local_model_name
     return local_model_name
 
 class StatusBar:

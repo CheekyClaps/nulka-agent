@@ -1,13 +1,13 @@
 import os
 import sys
 
-from omniagent.core.state import state
-from omniagent.utils import get_system_context
-from omniagent.hrf_manager import hrf_manager
+from nulka_agent.core.state import state
+from nulka_agent.utils import get_system_context
+from nulka_agent.hrf_manager import hrf_manager
 
 # Inline implementation to avoid circular dependencies
 def get_active_model_name() -> str:
-    from omniagent.utils import get_best_available_model
+    from nulka_agent.utils import get_best_available_model
     return get_best_available_model()
 
 # Note: console, execute_teach_feedback, execute_expand_pager are imported/passed where needed
@@ -25,7 +25,7 @@ def handle_slash_command(cmd: str, parts: list[str], console, session, cli_modul
         print_help(console)
         return True
     elif cmd == "/about":
-        console.print("[bold green]OmniAgent[/bold green] - A robust, production-ready omni-agent CLI.")
+        console.print("[bold green]NulkaAgent[/bold green] - A robust, production-ready omni-agent CLI.")
         console.print("[dim]Inspired by the Gemini CLI. Powered by CrewAI & Ollama.[/dim]")
         return True
     elif cmd == "/clear":
@@ -45,16 +45,16 @@ def handle_slash_command(cmd: str, parts: list[str], console, session, cli_modul
         return True
     elif cmd in ["/quit", "/exit"]:
         if "--delete" in parts:
-            history_file = os.path.join(os.path.expanduser("~"), ".omniagent_history")
+            history_file = os.path.join(os.path.expanduser("~"), ".nulka_agent_history")
             if os.path.exists(history_file):
                 os.remove(history_file)
             console.print("[bold red]🗑️ History purged.[/bold red]")
-        console.print("[bold yellow]Powering down OmniAgent. Goodbye human[/bold yellow]")
+        console.print("[bold yellow]Powering down NulkaAgent. Goodbye human[/bold yellow]")
         sys.exit(0)
 
     # 2. Tools & Agents Inspection
     elif cmd == "/tools":
-        console.print("[bold cyan]🛠️ Available OmniAgent Tools:[/bold cyan]")
+        console.print("[bold cyan]🛠️ Available NulkaAgent Tools:[/bold cyan]")
         console.print("  - [bold]read_file[/bold]: Read file contents.")
         console.print("  - [bold]write_file[/bold]: Write to files.")
         console.print("  - [bold]search_workspace[/bold]: Glob search files.")
@@ -62,7 +62,7 @@ def handle_slash_command(cmd: str, parts: list[str], console, session, cli_modul
         console.print("  - [bold]consult_oracle[/bold]: Fallback to universal truth (gemini/claude).")
         return True
     elif cmd == "/agents":
-        console.print("[bold magenta]🤖 Available OmniAgent Departments:[/bold magenta]")
+        console.print("[bold magenta]🤖 Available NulkaAgent Departments:[/bold magenta]")
         console.print("  - Router, Planner, Architect, Developer, Tester, Pentester, Security Officer, Network Engineer, Teacher")
         return True
     
@@ -86,7 +86,7 @@ def handle_slash_command(cmd: str, parts: list[str], console, session, cli_modul
         
     # 4. Workspace & Directory
     elif cmd == "/init":
-        workspace_dir = os.path.join(os.path.abspath(os.getcwd()), ".omniagent")
+        workspace_dir = os.path.join(os.path.abspath(os.getcwd()), ".nulka_agent")
         if os.path.exists(workspace_dir):
             console.print(f"[bold yellow]⚠️ Workspace already initialized at {workspace_dir}[/bold yellow]")
         else:
@@ -94,7 +94,7 @@ def handle_slash_command(cmd: str, parts: list[str], console, session, cli_modul
                 os.makedirs(workspace_dir)
                 with open(os.path.join(workspace_dir, "session.json"), "w", encoding="utf-8") as f:
                     f.write('{"history": []}')
-                console.print(f"[bold green]✅ Successfully initialized OmniAgent workspace at {workspace_dir}[/bold green]")
+                console.print(f"[bold green]✅ Successfully initialized NulkaAgent workspace at {workspace_dir}[/bold green]")
                 console.print("[dim]Session progress and workspace memory will now be persistently saved here.[/dim]")
             except Exception as e:
                 console.print(f"[bold red]❌ Failed to initialize workspace: {e}[/bold red]")
@@ -252,8 +252,8 @@ def handle_slash_command(cmd: str, parts: list[str], console, session, cli_modul
 
     # 8. Unimplemented/Mocked External Extensions
     elif cmd in ["/mcp", "/extensions", "/skills", "/plan", "/policies", "/hooks", "/shells", "/bashes", "/setup-github", "/resume", "/chat", "/rewind", "/restore", "/settings", "/theme", "/terminal-setup", "/permissions", "/compress", "/memory", "/stats", "/bug", "/upgrade", "/privacy"]:
-        console.print(f"[yellow]⚠️  Command '{cmd}' is a recognized Gemini command, but is currently stubbed/unsupported in OmniAgent.[/yellow]")
-        console.print("[dim]OmniAgent focuses on autonomous CrewAI agentic behaviors over direct manual REPL scaffolding.[/dim]")
+        console.print(f"[yellow]⚠️  Command '{cmd}' is a recognized Gemini command, but is currently stubbed/unsupported in NulkaAgent.[/yellow]")
+        console.print("[dim]NulkaAgent focuses on autonomous CrewAI agentic behaviors over direct manual REPL scaffolding.[/dim]")
         return True
 
     else:
@@ -265,7 +265,7 @@ def print_help(console):
     from rich.panel import Panel
     console.print(Panel(
         "[bold yellow]Core System[/bold yellow]\n"
-        "  [bold cyan]/about[/]              Show OmniAgent version and diagnostic info\n"
+        "  [bold cyan]/about[/]              Show NulkaAgent version and diagnostic info\n"
         "  [bold cyan]/clear[/]              Clear the screen and reset session context\n"
         "  [bold cyan]/vim[/]                Toggle Vim-mode keybindings for the prompt\n"
         "  [bold cyan]/quit[/]               Exit session (use --delete to purge history)\n\n"
@@ -292,5 +292,5 @@ def print_help(console):
         "[bold yellow]Model Management[/bold yellow]\n"
         "  [bold cyan]/models[/]             Show downloaded & loaded Ollama models\n"
         "  [bold cyan]/pull <name>[/]        Download a new model from the Ollama library",
-        title="OmniAgent Command Reference", border_style="blue"
+        title="NulkaAgent Command Reference", border_style="blue"
     ))

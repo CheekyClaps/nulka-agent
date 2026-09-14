@@ -18,14 +18,14 @@ class SessionState:
         self.load_session()
 
     def get_workspace_dir(self) -> str:
-        """Returns the local workspace .omniagent directory if it exists, otherwise falls back to a global directory."""
+        """Returns the local workspace .nulka_agent directory if it exists, otherwise falls back to a global directory."""
         cwd = os.path.abspath(os.getcwd())
-        local_dir = os.path.join(cwd, ".omniagent")
+        local_dir = os.path.join(cwd, ".nulka_agent")
         if os.path.exists(local_dir):
             return local_dir
         
         # Fallback to global user directory for uninitialized workspaces
-        global_dir = os.path.expanduser("~/.omniagent/global_workspace")
+        global_dir = os.path.expanduser("~/.nulka_agent/global_workspace")
         os.makedirs(global_dir, exist_ok=True)
         return global_dir
 

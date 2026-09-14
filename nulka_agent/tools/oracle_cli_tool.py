@@ -17,7 +17,7 @@ class OracleCLITool(BaseTool):
             prompt: The text prompt/query to send to the Oracle CLI tool.
         """
         # Inject Universal Ground Rules if they exist
-        rules_path = os.path.expanduser("~/.omniagent_rules.md")
+        rules_path = os.path.expanduser("~/.nulka_agent_rules.md")
         if os.path.exists(rules_path):
             try:
                 with open(rules_path, "r") as f:

@@ -5,17 +5,17 @@ with open("README.md", "r", encoding="utf-8") as fh:
     long_description = fh.read()
 
 setup(
-    name="omniagent",
+    name="nulka-agent",
     version="1.0.0",
     description="Enterprise Multi-Agent Simulated Workspace with local LLMs and a Self-Learning Feedback Loop.",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    author="OmniAgent Team",
-    url="https://github.com/cheekyclaps/omniagent",
+    author="NulkaAgent Team",
+    url="https://github.com/cheekyclaps/nulka-agent",
     packages=find_packages(),
     include_package_data=True,
     package_data={
-        "omniagent": ["config/*.yaml", "config/agents/*.md"],
+        "nulka_agent": ["config/*.yaml", "config/agents/*.md"],
     },
     install_requires=[
         "crewai",
@@ -32,7 +32,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "omniagent=omniagent.cli:run_interactive_cli",
+            "nulka-agent=nulka_agent.cli:run_interactive_cli",
         ],
     },
     python_requires=">=3.10",

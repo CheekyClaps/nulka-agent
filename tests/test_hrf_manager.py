@@ -6,7 +6,7 @@ import json
 # Add workspace root to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from omniagent.hrf_manager import HRFManager, HRF_CONFIG_PATH
+from nulka_agent.hrf_manager import HRFManager, HRF_CONFIG_PATH
 
 class TestHRFManager(unittest.TestCase):
     def setUp(self):

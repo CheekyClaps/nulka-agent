@@ -1,11 +1,11 @@
 import os
 import pytest
-from omniagent.tools.fs_tools import (
+from nulka_agent.tools.fs_tools import (
     ReadFileTool, WriteFileTool, ReplaceTextTool, 
     ListDirectoryTool, GlobSearchTool, GrepSearchTool
 )
-from omniagent.tools.shell_tool import RunShellCommandTool
-from omniagent.tools.web_search_tool import WebSearchTool
+from nulka_agent.tools.shell_tool import RunShellCommandTool
+from nulka_agent.tools.web_search_tool import WebSearchTool
 
 def test_read_write_file_tool(tmp_path):
     """Test creating a file and reading it back."""

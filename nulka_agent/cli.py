@@ -37,7 +37,7 @@ from prompt_toolkit import PromptSession
 from prompt_toolkit.history import InMemoryHistory
 from crewai import Crew, Task, Process
 from langchain.tools import tool
-from omniagent.utils import (
+from nulka_agent.utils import (
     instantiate_agents, 
     get_system_context, 
     ollama_llm,
@@ -114,7 +114,7 @@ agents = instantiate_agents(custom_tools=workspace_tools)
 # Global Debug Mode to control agent thought verbosity
 DEBUG_MODE = False
 
-from omniagent.core.state import state
+from nulka_agent.core.state import state
 
 def format_condensed_output(text: str, max_lines: int = 40) -> str:
     """Smartly truncates massive string outputs for the terminal UI."""
@@ -147,7 +147,7 @@ def analyze_prompt_intent(prompt: str) -> dict:
         history_context += "-----------------------------------\n\n"
 
     system_prompt = (
-        "You are the OmniAgent Lead Coordinator.\n"
+        "You are the NulkaAgent Lead Coordinator.\n"
         "Your job is to read the user's prompt (and history) and perform two tasks:\n\n"
         "TASK 1 - SCRUTINY:\n"
         "Determine if the prompt is missing critical context (e.g., they ask to edit a file but don't name the file). "
@@ -222,11 +222,11 @@ def calculate_hallucination_risk(prompt: str) -> int:
         
     return min(score, 10)
 
-from omniagent.hrf_manager import hrf_manager
+from nulka_agent.hrf_manager import hrf_manager
 
 def get_active_model_name() -> str:
     """Helper to fetch the primary loaded model."""
-    from omniagent.utils import get_best_available_model
+    from nulka_agent.utils import get_best_available_model
     return get_best_available_model()
 
 def route_request(prompt: str, predefined_route: str = None) -> str:
@@ -247,7 +247,7 @@ def route_request(prompt: str, predefined_route: str = None) -> str:
         available_models = [m for m in get_local_models() if m != active_model]
         if available_models:
             console.print("\n[bold cyan]💡 Mitigation Available: Switch to a different Local Model?[/bold cyan]")
-            from omniagent.core.state import ask_user_safe
+            from nulka_agent.core.state import ask_user_safe
             choice = ask_user_safe("Select option ❯ ", style_dict={'prompt': 'ansicyan bold'}).lower()
             if choice and choice != 's':
                 try:
@@ -259,7 +259,7 @@ def route_request(prompt: str, predefined_route: str = None) -> str:
                         CONFIG_PATH = os.path.expanduser("~/.oac_env")
                         set_key(CONFIG_PATH, "LOCAL_MODEL", new_model)
                         console.print(f"[bold green]✅ Success! Active model swapped to {new_model}.[/bold green]")
-                        console.print("[yellow]Please restart OmniAgent for the core swap to take effect![/yellow]")
+                        console.print("[yellow]Please restart NulkaAgent for the core swap to take effect![/yellow]")
                         return "SWAP_RESTART"
                 except ValueError:
                     pass
@@ -525,8 +525,8 @@ def execute_teach_feedback():
     target_agent_key = route_to_agent_map.get(state.last_route, "assistant")
 
     console.print("[bold yellow]🚀 Consulting the External Oracle...[/]")
-    from omniagent.tools.oracle_cli_tool import OracleCLITool
-    from omniagent.tools.interactive_teacher_tool import InteractiveTeacherTool
+    from nulka_agent.tools.oracle_cli_tool import OracleCLITool
+    from nulka_agent.tools.interactive_teacher_tool import InteractiveTeacherTool
     
     # 1. Fetch Oracle Truth manually
     oracle_tool = OracleCLITool()
@@ -548,7 +548,7 @@ def execute_teach_feedback():
         console.print("[bold yellow]Because the Oracle is unavailable, we cannot auto-formulate a lesson from it.[/bold yellow]")
         console.print("However, you can still formulate your own manual 'Lesson Learned' rule below, or leave it blank to cancel.")
         
-        from omniagent.core.state import ask_user_safe
+        from nulka_agent.core.state import ask_user_safe
         custom_rule = ask_user_safe(
             "\nEnter your custom 'Lesson Learned' rule (or press Enter to cancel) ❯ ",
             style_dict={'prompt': 'ansiyellow bold'}
@@ -633,7 +633,7 @@ def run_onboarding_wizard():
     console.print("\n")
     banner = (
         "[bold cyan]========================================================================[/bold cyan]\n"
-        "                 [bold yellow]🌟 Welcome to OmniAgent Onboarding! 🌟[/bold yellow]\n"
+        "                 [bold yellow]🌟 Welcome to NulkaAgent Onboarding! 🌟[/bold yellow]\n"
         "          Let's configure your system-wide Oracle fallback tool.\n"
         "[bold cyan]========================================================================[/bold cyan]\n"
     )
@@ -662,7 +662,7 @@ def run_onboarding_wizard():
             console.print(f"  [[bold cyan]{i}[/]] {cli}")
         console.print("  [[bold cyan]c[/]] Enter a custom command string")
         
-        from omniagent.core.state import ask_user_safe
+        from nulka_agent.core.state import ask_user_safe
         choice = ask_user_safe("Select option [default: 0] > ", style_dict={'prompt': 'ansicyan bold'}).lower()
         if not choice:
             console.print("\n[bold red]Onboarding cancelled. Falling back to default 'gemini --prompt'.[/bold red]")
@@ -683,7 +683,7 @@ def run_onboarding_wizard():
                 oracle_cmd = "gemini --prompt"
     else:
         console.print("\n[bold yellow]No standard AI CLIs were found on your PATH.[/bold yellow]")
-        from omniagent.core.state import ask_user_safe
+        from nulka_agent.core.state import ask_user_safe
         custom_cmd = ask_user_safe("Enter your Oracle CLI command string [default: gemini --prompt] > ", style_dict={'prompt': 'ansicyan bold'})
         oracle_cmd = custom_cmd if custom_cmd else "gemini --prompt"
         
@@ -692,7 +692,7 @@ def run_onboarding_wizard():
     # Save to global config file
     try:
         with open(CONFIG_PATH, "w") as f:
-            f.write("# OmniAgent Environment Configuration\n")
+            f.write("# NulkaAgent Environment Configuration\n")
             f.write(f'ORACLE_CMD="{oracle_cmd}"\n')
         console.print(f"[bold green]💾 Saved configuration to {CONFIG_PATH} successfully![/bold green]\n")
         
@@ -723,7 +723,7 @@ def run_interactive_cli():
 
     # Welcome banner
     welcome_text = Text()
-    welcome_text.append("\n🤖 Omni-Agent\n", style="bold green")
+    welcome_text.append("\n🤖 Nulka-Agent\n", style="bold green")
     welcome_text.append("Operating System: ", style="dim")
     welcome_text.append(f"{platform.system()} {platform.release()}\n", style="bold cyan")
     welcome_text.append("Local Time: ", style="dim")
@@ -736,16 +736,16 @@ def run_interactive_cli():
     welcome_text.append("Type /models to view models or /help to view command list\n", style="bold green")
     welcome_text.append("Type '/quit', 'exit', or 'quit' to terminate.\n", style="italic")
     
-    console.print(Panel(welcome_text, title="[bold green]OmniAgent[/]", border_style="green"))
+    console.print(Panel(welcome_text, title="[bold green]NulkaAgent[/]", border_style="green"))
     
     from prompt_toolkit.history import FileHistory
     from prompt_toolkit.styles import Style
     from prompt_toolkit.key_binding import KeyBindings
     import os
-    history_file = os.path.join(os.path.expanduser("~"), ".omniagent_history")
+    history_file = os.path.join(os.path.expanduser("~"), ".nulka_agent_history")
     
-    from omniagent.ui.statusbar import StatusBar
-    from omniagent.ui.slash_commands import handle_slash_command
+    from nulka_agent.ui.statusbar import StatusBar
+    from nulka_agent.ui.slash_commands import handle_slash_command
 
     # Define custom KeyBindings for multiline Shift+Enter insertion
     kb = KeyBindings()
@@ -789,7 +789,7 @@ def run_interactive_cli():
             continue
             
         if user_input.lower() in ['/quit', 'exit', 'quit']:
-            console.print("[bold yellow]Powering down OmniAgent. Goodbye human[/]")
+            console.print("[bold yellow]Powering down NulkaAgent. Goodbye human[/]")
             break
             
         # Handle slash commands using the new dedicated handler

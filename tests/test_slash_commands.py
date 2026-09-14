@@ -1,8 +1,8 @@
 import os
 import pytest
 from unittest.mock import MagicMock
-from omniagent.ui.slash_commands import handle_slash_command
-from omniagent.core.state import state
+from nulka_agent.ui.slash_commands import handle_slash_command
+from nulka_agent.core.state import state
 
 @pytest.fixture
 def mock_console():
@@ -38,7 +38,7 @@ def test_handle_slash_command_init_workspace(tmp_path, mock_console, mock_sessio
         handled = handle_slash_command("/init", ["/init"], mock_console, mock_session, mock_cli_module)
         assert handled is True
         
-        workspace_dir = os.path.join(tmp_path, ".omniagent")
+        workspace_dir = os.path.join(tmp_path, ".nulka_agent")
         session_file = os.path.join(workspace_dir, "session.json")
         
         assert os.path.exists(workspace_dir)

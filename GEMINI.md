@@ -1,14 +1,14 @@
-# OmniAgent Workspace Memory
+# NulkaAgent Workspace Memory
 
 ## 🏗 Project Architecture & State (As of Sept 11, 2026)
 
-This project has been transformed from a basic CrewAI boilerplate into **OmniAgent**, a highly robust, production-ready, globally executable Python package.
+This project has been transformed from a basic CrewAI boilerplate into **NulkaAgent**, a highly robust, production-ready, globally executable Python package.
 
 ### Key Capabilities & Workflows:
-1. **Dynamic Omni-Agent Corporate Crew:**
+1. **Dynamic Nulka-Agent Corporate Crew:**
    * Contains 8 specialized departments: `Router, Planner, Architect, Developer, Tester, Pentester, Security Officer, Network Engineer`.
    * Also includes a `Teacher` (Educational Director) and an `External Oracle` (Fallback Consultant).
-   * YAML & Markdown configuration split. Meta-properties reside in `omniagent/config/agents.yaml`, while long-form backstories and reasoning protocols are in individual files under `omniagent/config/agents/*.md`.
+   * YAML & Markdown configuration split. Meta-properties reside in `nulka_agent/config/agents.yaml`, while long-form backstories and reasoning protocols are in individual files under `nulka_agent/config/agents/*.md`.
 
 2. **The Prompt Scrutinizer (Pre-Execution):**
    * Before spinning up heavy LLM crews, a lightweight LLM scrutinizer evaluates the user prompt for missing context (e.g. missing filenames or physical location).
@@ -27,7 +27,7 @@ This project has been transformed from a basic CrewAI boilerplate into **OmniAge
    * If a local agent fails or hallucinates an answer, the user types `/teach`.
    * The system bypasses standard workflow, queries the absolute truth from the Universal Oracle, and triggers the `InteractiveTeacherTool`.
    * The terminal presents an interactive Zellij-style UI (using `prompt_toolkit` bottom toolbars). The user can Accept, Reject, or Augment the rule.
-   * **Git-Versioned Persistence:** Approved rules are appended to the agent's backstory `.md` file, and instantly committed to the Git repository (e.g., `OmniAgent Learning Loop: Update assistant.md`).
+   * **Git-Versioned Persistence:** Approved rules are appended to the agent's backstory `.md` file, and instantly committed to the Git repository (e.g., `NulkaAgent Learning Loop: Update assistant.md`).
 
 6. **Smart Output Condenser (`/expand`):**
    * Any tool output (e.g. `search_workspace` grabbing 40,000 files) is instantly intercepted and truncated to 30 lines with a glowing `[ ... Lines Condensed ... ]` tag.
@@ -35,7 +35,7 @@ This project has been transformed from a basic CrewAI boilerplate into **OmniAge
    * Users can type `/expand` to open the full raw string in a native terminal pager (like `less`).
 
 ### 🚀 Commands to Run the App
-The project is packaged via `setup.py`. It is symlinked globally to `~/.local/bin/omniagent`.
-* To run the app, type: `omniagent`
+The project is packaged via `setup.py`. It is symlinked globally to `~/.local/bin/nulka_agent`.
+* To run the app, type: `nulka_agent`
 * The interactive Onboarding Wizard automatically handles missing `.oac_env` configs.
 * Ensure you configure `LOCAL_MODEL="qwen2.5:14b"` for the best agentic reasoning capability!

@@ -35,7 +35,7 @@ class InteractiveTeacherTool(BaseTool):
             console.print(f"\n[bold red]⚠️  Teacher Agent proposed an invalid agent name: '{agent_name}'.[/bold red]")
             console.print(f"Available agents to update: {', '.join(valid_agents)}")
             
-            from omniagent.core.state import ask_user_safe
+            from nulka_agent.core.state import ask_user_safe
             agent_name_clean = ask_user_safe(
                 "Please enter the correct agent name to update (or leave blank to skip) > ",
                 style_dict={'prompt': 'ansiyellow bold'}
@@ -65,7 +65,7 @@ class InteractiveTeacherTool(BaseTool):
             border_style="yellow"
         ))
 
-        from omniagent.core.state import ask_user_safe
+        from nulka_agent.core.state import ask_user_safe
         user_decision = ask_user_safe(
             "Feedback Action ([A]ccept / [R]eject / Type custom rules) ❯ ",
             style_dict={'prompt': 'ansicyan bold'}
@@ -98,7 +98,7 @@ class InteractiveTeacherTool(BaseTool):
             import subprocess
             try:
                 subprocess.run(["git", "add", file_path], check=True, capture_output=True)
-                commit_msg = f"OmniAgent Learning Loop: Update {agent_name_clean}.md"
+                commit_msg = f"NulkaAgent Learning Loop: Update {agent_name_clean}.md"
                 subprocess.run(["git", "commit", "-m", commit_msg], check=True, capture_output=True)
                 status_message += f"\n[bold green]📦 Version control active: Changes safely committed to git repository.[/bold green]"
             except Exception as git_e:

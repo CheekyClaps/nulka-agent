@@ -7,8 +7,8 @@ from unittest.mock import patch, MagicMock
 # Add workspace root to Python path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
-from omniagent.core.state import state
-from omniagent.cli import run_interactive_cli
+from nulka_agent.core.state import state
+from nulka_agent.cli import run_interactive_cli
 
 class TestWorkspaceCommands(unittest.TestCase):
     def setUp(self):
