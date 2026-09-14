@@ -141,7 +141,9 @@ def analyze_prompt_intent(prompt: str) -> dict:
         recent = state.history[-2:]
         history_context = "\n--- Recent Conversation History ---\n"
         for h in recent:
-            history_context += f"User: {h.get('prompt')}\nAgent: {h.get('output')}\n"
+            out = h.get('output', '')
+            out_preview = out[:300] + "... [TRUNCATED]" if len(out) > 300 else out
+            history_context += f"User: {h.get('prompt')}\nAgent: {out_preview}\n"
         history_context += "-----------------------------------\n\n"
 
     system_prompt = (
@@ -277,11 +279,18 @@ def execute_crew_workflow(route: str, prompt: str):
     # Inject conversational history into the prompt for the agents
     history_context = ""
     if state.history:
-        recent = state.history[-2:]
-        history_context = "\n--- Recent Conversation History ---\n"
-        for h in recent:
-            history_context += f"User: {h.get('prompt')}\nAgent: {h.get('output')}\n"
-        history_context += "-----------------------------------\n\n"
+        recent = state.history[-1] # Just the last turn to keep context tight
+        out_preview = recent.get('output', '')[:200] + "..."
+        history_context = (
+            f"\n--- CACHED CONTEXT FROM PREVIOUS TURN ---\n"
+            f"User previously asked: {recent.get('prompt')}\n"
+            f"Agent preview: {out_preview}\n"
+            f"CRITICAL RULES FOR CONTINUATION:\n"
+            f"1. The full, complete result of the previous turn is safely cached in the file '.omniagent/last_output_cache.txt'.\n"
+            f"2. If the current request refers to 'this', 'that', 'the code', or asks to modify/summarize the previous result, DO NOT re-run the previous search or generation.\n"
+            f"3. Instead, use the 'read_file' tool to read '.omniagent/last_output_cache.txt' and process its contents.\n"
+            f"-----------------------------------------\n\n"
+        )
         
     full_prompt_with_history = f"{history_context}Current Request: '{prompt}'"
     

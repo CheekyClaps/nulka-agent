@@ -55,6 +55,17 @@ class SessionState:
         except Exception:
             pass
 
+    def save_output_cache(self, output: str):
+        """Saves the raw output of the last turn to a cache file so agents can read it without re-executing."""
+        workspace_dir = self.get_workspace_dir()
+        if os.path.exists(workspace_dir):
+            cache_file = os.path.join(workspace_dir, "last_output_cache.txt")
+            try:
+                with open(cache_file, "w", encoding="utf-8") as f:
+                    f.write(output)
+            except Exception:
+                pass
+
     def append_interaction(self, prompt: str, route: str, output: str):
         """Logs an interaction to history and flushes to disk."""
         self.last_user_prompt = prompt
@@ -67,6 +78,7 @@ class SessionState:
             "output": output
         })
         self.save_session()
+        self.save_output_cache(output)
 
 # Singleton instance to be shared across the application run
 state = SessionState()
