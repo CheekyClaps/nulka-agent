@@ -18,13 +18,19 @@ class SessionState:
         self.load_session()
 
     def get_workspace_dir(self) -> str:
-        """Returns the local workspace .omniagent directory if it exists."""
+        """Returns the local workspace .omniagent directory if it exists, otherwise falls back to a global directory."""
         cwd = os.path.abspath(os.getcwd())
-        workspace_dir = os.path.join(cwd, ".omniagent")
-        return workspace_dir
+        local_dir = os.path.join(cwd, ".omniagent")
+        if os.path.exists(local_dir):
+            return local_dir
+        
+        # Fallback to global user directory for uninitialized workspaces
+        global_dir = os.path.expanduser("~/.omniagent/global_workspace")
+        os.makedirs(global_dir, exist_ok=True)
+        return global_dir
 
     def load_session(self):
-        """Loads session progress from the local workspace."""
+        """Loads session progress from the active workspace."""
         workspace_dir = self.get_workspace_dir()
         session_file = os.path.join(workspace_dir, "session.json")
         
@@ -43,11 +49,8 @@ class SessionState:
                 pass # Fail silently if corrupted
 
     def save_session(self):
-        """Saves current progress if the workspace is initialized."""
+        """Saves current progress to the active workspace."""
         workspace_dir = self.get_workspace_dir()
-        if not os.path.exists(workspace_dir):
-            return # Don't save if the user hasn't run /init yet
-            
         session_file = os.path.join(workspace_dir, "session.json")
         try:
             with open(session_file, "w", encoding="utf-8") as f:
@@ -58,13 +61,12 @@ class SessionState:
     def save_output_cache(self, output: str):
         """Saves the raw output of the last turn to a cache file so agents can read it without re-executing."""
         workspace_dir = self.get_workspace_dir()
-        if os.path.exists(workspace_dir):
-            cache_file = os.path.join(workspace_dir, "last_output_cache.txt")
-            try:
-                with open(cache_file, "w", encoding="utf-8") as f:
-                    f.write(output)
-            except Exception:
-                pass
+        cache_file = os.path.join(workspace_dir, "last_output_cache.txt")
+        try:
+            with open(cache_file, "w", encoding="utf-8") as f:
+                f.write(output)
+        except Exception:
+            pass
 
     def append_interaction(self, prompt: str, route: str, output: str):
         """Logs an interaction to history and flushes to disk."""

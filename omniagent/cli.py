@@ -281,14 +281,17 @@ def execute_crew_workflow(route: str, prompt: str):
     if state.history:
         recent = state.history[-1] # Just the last turn to keep context tight
         out_preview = recent.get('output', '')[:200] + "..."
+        # Provide the absolute path to the active cache file
+        import os
+        cache_path = os.path.join(state.get_workspace_dir(), "last_output_cache.txt")
         history_context = (
             f"\n--- CACHED CONTEXT FROM PREVIOUS TURN ---\n"
             f"User previously asked: {recent.get('prompt')}\n"
             f"Agent preview: {out_preview}\n"
             f"CRITICAL RULES FOR CONTINUATION:\n"
-            f"1. The full, complete result of the previous turn is safely cached in the file '.omniagent/last_output_cache.txt'.\n"
+            f"1. The full, complete result of the previous turn is safely cached in the file: '{cache_path}'\n"
             f"2. If the current request refers to 'this', 'that', 'the code', or asks to modify/summarize the previous result, DO NOT re-run the previous search or generation.\n"
-            f"3. Instead, use the 'read_file' tool to read '.omniagent/last_output_cache.txt' and process its contents.\n"
+            f"3. Instead, use the 'read_file' tool to read '{cache_path}' and process its contents.\n"
             f"-----------------------------------------\n\n"
         )
         
