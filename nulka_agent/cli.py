@@ -781,7 +781,7 @@ def run_interactive_cli():
                 multiline=True
             )
         except (KeyboardInterrupt, EOFError):
-            console.print("\n[bold yellow]Exiting. Goodbye![/]")
+            console.print("\n[bold yellow]Goodbye human[/]")
             break
             
         user_input = user_input.strip()
@@ -789,7 +789,7 @@ def run_interactive_cli():
             continue
             
         if user_input.lower() in ['/quit', 'exit', 'quit']:
-            console.print("[bold yellow]Powering down NulkaAgent. Goodbye human[/]")
+            console.print("[bold yellow]Goodbye human[/]")
             break
             
         # Handle slash commands using the new dedicated handler

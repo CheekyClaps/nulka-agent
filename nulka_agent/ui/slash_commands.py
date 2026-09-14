@@ -49,7 +49,7 @@ def handle_slash_command(cmd: str, parts: list[str], console, session, cli_modul
             if os.path.exists(history_file):
                 os.remove(history_file)
             console.print("[bold red]🗑️ History purged.[/bold red]")
-        console.print("[bold yellow]Powering down NulkaAgent. Goodbye human[/bold yellow]")
+        console.print("[bold yellow]Goodbye human[/bold yellow]")
         sys.exit(0)
 
     # 2. Tools & Agents Inspection
