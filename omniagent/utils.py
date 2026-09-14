@@ -8,6 +8,14 @@ from langchain_community.llms import Ollama
 from omniagent.tools.oracle_cli_tool import OracleCLITool
 from omniagent.tools.interactive_teacher_tool import InteractiveTeacherTool
 from omniagent.tools.consult_oracle_tool import ConsultOracleTool
+from omniagent.tools.web_search_tool import WebSearchTool
+from omniagent.tools.web_fetch_tool import WebFetchTool
+from omniagent.tools.fs_tools import (
+    ReadFileTool, WriteFileTool, ReplaceTextTool, 
+    ListDirectoryTool, GlobSearchTool, GrepSearchTool
+)
+from omniagent.tools.shell_tool import RunShellCommandTool
+from omniagent.tools.ui_tools import AskUserTool, UpdateTopicTool
 
 # (Moved logic to bottom of file)
 
@@ -106,17 +114,44 @@ def instantiate_agents(custom_tools=None):
     oracle_cli_tool = OracleCLITool()
     interactive_teacher_tool = InteractiveTeacherTool()
     consult_oracle_tool = ConsultOracleTool()
+    web_search_tool = WebSearchTool()
+    web_fetch_tool = WebFetchTool()
     
+    # Workspace & File System Tools
+    read_tool = ReadFileTool()
+    write_tool = WriteFileTool()
+    replace_tool = ReplaceTextTool()
+    list_dir_tool = ListDirectoryTool()
+    glob_tool = GlobSearchTool()
+    grep_tool = GrepSearchTool()
+    shell_tool = RunShellCommandTool()
+    
+    # UI/Interactive Tools for Managers
+    ask_user_tool = AskUserTool()
+    update_topic_tool = UpdateTopicTool()
+
     configs = load_agent_configs()
     agents = {}
-    
+
     # Distribute tools to relevant agents
     for agent_key, config in configs.items():
         # Setup tools for each agent based on their requirements
-        agent_tools = []
         
-        if agent_key in ["developer", "systems_engineer", "pentester", "network_engineer", "external_oracle"]:
-            # These specialized profiles get the Oracle CLI Tool
+        # 1. Base Exploration Suite (Everyone gets these)
+        agent_tools = [
+            web_search_tool, web_fetch_tool, 
+            read_tool, list_dir_tool, glob_tool, grep_tool
+        ]
+
+        if agent_key in ["developer", "systems_engineer", "pentester", "network_engineer"]:
+            # 2. Execution & Modification Suite (Only active builders)
+            agent_tools.extend([write_tool, replace_tool, shell_tool, oracle_cli_tool])
+            
+        if agent_key in ["router", "planner"]:
+            # 3. UI/Management Suite (For leaders to talk to the user)
+            agent_tools.extend([ask_user_tool, update_topic_tool])
+            
+        if agent_key == "external_oracle":
             agent_tools.append(oracle_cli_tool)
             
         if agent_key == "teacher":

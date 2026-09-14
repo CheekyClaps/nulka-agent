@@ -18,15 +18,17 @@ setup(
         "omniagent": ["config/*.yaml", "config/agents/*.md"],
     },
     install_requires=[
-        "crewai==0.11.2",
-        "langchain==0.1.20",
-        "langchain-community==0.0.38",
+        "crewai",
+        "langchain",
+        "langchain-community",
         "pydantic>=2.0",
         "rich>=13.0",
         "prompt_toolkit>=3.0",
         "pyyaml",
         "python-dotenv",
-        "requests"
+        "requests",
+        "duckduckgo-search",
+        "beautifulsoup4"
     ],
     entry_points={
         "console_scripts": [

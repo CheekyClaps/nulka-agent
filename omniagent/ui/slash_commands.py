@@ -85,6 +85,20 @@ def handle_slash_command(cmd: str, parts: list[str], console, session, cli_modul
         return True
         
     # 4. Workspace & Directory
+    elif cmd == "/init":
+        workspace_dir = os.path.join(os.path.abspath(os.getcwd()), ".omniagent")
+        if os.path.exists(workspace_dir):
+            console.print(f"[bold yellow]⚠️ Workspace already initialized at {workspace_dir}[/bold yellow]")
+        else:
+            try:
+                os.makedirs(workspace_dir)
+                with open(os.path.join(workspace_dir, "session.json"), "w", encoding="utf-8") as f:
+                    f.write('{"history": []}')
+                console.print(f"[bold green]✅ Successfully initialized OmniAgent workspace at {workspace_dir}[/bold green]")
+                console.print("[dim]Session progress and workspace memory will now be persistently saved here.[/dim]")
+            except Exception as e:
+                console.print(f"[bold red]❌ Failed to initialize workspace: {e}[/bold red]")
+        return True
     elif cmd == "/cd":
         target_dir = os.path.expanduser(" ".join(parts[1:]) if len(parts) > 1 else "~")
         target_dir = os.path.abspath(target_dir)

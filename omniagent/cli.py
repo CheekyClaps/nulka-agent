@@ -1,3 +1,12 @@
+import ast
+
+# --- MONKEY-PATCH AST FOR PYTHON 3.14+ ---
+# docstring-parser 0.15 (pinned by crewai 0.11.2) uses ast.NameConstant, 
+# which was deprecated in 3.8 and removed in 3.14. 
+if not hasattr(ast, 'NameConstant'):
+    # In modern AST, NameConstant(value) is just Constant(value)
+    ast.NameConstant = ast.Constant
+
 import os
 import sys
 import glob
@@ -454,6 +463,9 @@ def execute_crew_workflow(route: str, prompt: str):
     else:
         completion_msg = "✅ Task Execution Completed!"
         title_str = "Response & Deliverables"
+
+    # Save interaction state persistently
+    state.append_interaction(prompt, route, result_text)
 
     # Construct the Breadcrumb Path of executed steps
     steps = ["Router"]
