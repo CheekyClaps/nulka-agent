@@ -156,13 +156,13 @@ def analyze_prompt_intent(prompt: str) -> dict:
         "Assign the request to EXACTLY ONE of these specialized departments:\n"
         "- PLAN: Roadmaps, task breakdowns, sprint setups.\n"
         "- ARCHITECT: System design, diagrams, framework choice.\n"
-        "- CODE: Explicitly writing, modifying, or refactoring codebase files.\n"
+        "- COMPLEX_CODE: ONLY for massive, multi-step software development requests that explicitly require a multi-agent swarm (Dev -> QA -> Security). Do NOT use this for standard file editing or basic coding.\n"
         "- TEST: Writing or executing test suites (pytest, etc).\n"
         "- PENTEST: Offensive security, exploit PoCs.\n"
         "- SECURITY: Defensive audits, compliance, secrets scanning.\n"
         "- NETWORK: Firewalls, proxies, domain configs.\n"
-        "- GENERAL: General chats, answering questions, internet searching, finding files, or requests to 'initialize' a workspace/project.\n\n"
-        "CRITICAL RULE: If the user is asking a question, searching the web, reading a file, or asking to 'init' or 'initialize' the project/workspace, ALWAYS route to GENERAL.\n\n"
+        "- GENERAL: The General Assistant. Capable of executing shell commands, writing/editing code, running searches, and chatting.\n\n"
+        "CRITICAL RULE: The GENERAL assistant is a highly capable coder and system operator. 95% of tasks (including writing code, fixing bugs, reading files, searching the web, or answering questions) MUST be routed to GENERAL. Only route to specialized departments if the user explicitly requests a complex, multi-agent audit or swarm.\n\n"
         "OUTPUT FORMAT (You must output exactly these two lines):\n"
         "SCRUTINY: [Your question or PROCEED]\n"
         "ROUTE: [Category Name]\n\n"
@@ -185,7 +185,7 @@ def analyze_prompt_intent(prompt: str) -> dict:
                 result["scrutiny"] = val if val else "PROCEED"
             elif line.upper().startswith("ROUTE:"):
                 val = line[len("ROUTE:"):].strip().upper()
-                for cat in ["PLAN", "ARCHITECT", "CODE", "TEST", "PENTEST", "SECURITY", "NETWORK", "GENERAL", "ORACLE"]:
+                for cat in ["PLAN", "ARCHITECT", "COMPLEX_CODE", "TEST", "PENTEST", "SECURITY", "NETWORK", "GENERAL", "ORACLE"]:
                     if cat in val:
                         result["route"] = cat
                         break
@@ -344,7 +344,7 @@ def execute_crew_workflow(route: str, prompt: str):
         crew_agents = [agents["systems_engineer"]]
         status_msg = "Systems Architecture is engineering the structural boundaries..."
 
-    elif route == "CODE":
+    elif route == "COMPLEX_CODE":
         # Multi-agent software dev squad: Dev -> QA -> Security Audit
         coding_task = Task(
             description=f"Implement functional code for requirement: {full_prompt_with_history}. Write cleanly commented code into workspace files.",

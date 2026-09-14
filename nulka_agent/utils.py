@@ -143,8 +143,8 @@ def instantiate_agents(custom_tools=None):
             read_tool, list_dir_tool, glob_tool, grep_tool
         ]
 
-        if agent_key in ["developer", "systems_engineer", "pentester", "network_engineer"]:
-            # 2. Execution & Modification Suite (Only active builders)
+        if agent_key in ["developer", "systems_engineer", "pentester", "network_engineer", "assistant"]:
+            # 2. Execution & Modification Suite (Active builders and the General Assistant)
             agent_tools.extend([write_tool, replace_tool, shell_tool, oracle_cli_tool])
             
         if agent_key in ["router", "planner"]:
