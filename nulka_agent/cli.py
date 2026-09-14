@@ -433,15 +433,15 @@ def execute_crew_workflow(route: str, prompt: str):
     import time
     start_time = time.time()
     
-    with console.status(f"[bold green]🚀 {status_msg}[/]") as status:
-        crew = Crew(
-            agents=crew_agents,
-            tasks=tasks,
-            process=Process.sequential,
-            verbose=DEBUG_MODE
-        )
-        crew_output = crew.kickoff()
-        result_text = str(crew_output)
+    console.print(f"\n[bold green]🚀 {status_msg}[/]\n")
+    crew = Crew(
+        agents=crew_agents,
+        tasks=tasks,
+        process=Process.sequential,
+        verbose=DEBUG_MODE
+    )
+    crew_output = crew.kickoff()
+    result_text = str(crew_output)
         
     end_time = time.time()
     state.last_execution_time = end_time - start_time
