@@ -755,6 +755,11 @@ def run_interactive_cli():
         """Enter key validates and submits the prompt instead of inserting newline."""
         event.current_buffer.validate_and_handle()
 
+    @kb.add('c-j')
+    def _(event):
+        """Ctrl+J (which Unix terminals send on Shift+Enter) inserts a literal newline."""
+        event.current_buffer.insert_text('\n')
+
     @kb.add('escape', 'enter')
     def _(event):
         """Alt+Enter (Escape then Enter) inserts a literal newline in the prompt."""
