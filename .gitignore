@@ -25,3 +25,9 @@ coverage.xml
 dist/
 build/
 docs/_build/
+
+# Gemini CLI Private Files
+GEMINI.md
+.gemini/
+.geminiignore
+
