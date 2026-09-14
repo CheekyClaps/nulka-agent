@@ -728,13 +728,27 @@ def run_interactive_cli():
     
     from prompt_toolkit.history import FileHistory
     from prompt_toolkit.styles import Style
+    from prompt_toolkit.key_binding import KeyBindings
     import os
     history_file = os.path.join(os.path.expanduser("~"), ".omniagent_history")
     
     from omniagent.ui.statusbar import StatusBar
     from omniagent.ui.slash_commands import handle_slash_command
 
-    session = PromptSession(history=FileHistory(history_file))
+    # Define custom KeyBindings for multiline Shift+Enter insertion
+    kb = KeyBindings()
+
+    @kb.add('enter')
+    def _(event):
+        """Enter key validates and submits the prompt instead of inserting newline."""
+        event.current_buffer.validate_and_handle()
+
+    @kb.add('s-enter')
+    def _(event):
+        """Shift+Enter inserts a literal newline in the prompt."""
+        event.current_buffer.insert_text('\n')
+
+    session = PromptSession(history=FileHistory(history_file), key_bindings=kb)
     
     import sys
     this_module = sys.modules[__name__]
@@ -751,7 +765,8 @@ def run_interactive_cli():
                 "\n✦ ❯ ", 
                 bottom_toolbar=StatusBar.get_toolbar, 
                 style=prompt_style,
-                vi_mode=state.vim_mode
+                vi_mode=state.vim_mode,
+                multiline=True
             )
         except (KeyboardInterrupt, EOFError):
             console.print("\n[bold yellow]Exiting. Goodbye![/]")
